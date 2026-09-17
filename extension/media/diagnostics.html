@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MCP Platform</title>
+  <style>
+    :root {
+      --panel: #0b1220;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --muted2: #94a3b8;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --err: #ef4444;
+      --line: #1e3a5f;
+      --line2: #334155;
+      --accent: #38bdf8;
+      --bg: #0a1628;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: "IBM Plex Sans", var(--vscode-font-family), system-ui, sans-serif;
+      font-size: 12px;
+      color: var(--text);
+      background: linear-gradient(160deg, #0a1628 0%, #0f172a 55%, #0a1f3a 100%);
+    }
+    .header {
+      position: sticky; top: 0; z-index: 20;
+      background: rgba(11, 18, 32, 0.94);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(8px);
+    }
+    .header-main { display: flex; align-items: center; gap: 10px; padding: 10px 12px 6px; flex-wrap: wrap; }
+    .header h1 { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 13px; color: var(--accent); font-weight: 600; }
+    .header h1 span { color: var(--muted2); font-weight: 400; }
+    .live { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font: 10px/1 "IBM Plex Mono", ui-monospace, monospace; color: var(--muted2); border: 1px solid var(--line2); border-radius: 999px; padding: 4px 8px; max-width: 100%; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--err); flex-shrink: 0; }
+    .dot.on { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+    .probe { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tabs { display: flex; gap: 2px; padding: 0 8px; border-bottom: 1px solid var(--line); }
+    .tab { background: none; border: 0; color: var(--muted2); padding: 8px 10px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; font: inherit; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+    .main { padding: 12px 12px 28px; }
+    .pane { display: none; } .pane.active { display: block; }
+    .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
+    @media (min-width: 520px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+    .stat { background: var(--panel); border: 1px solid var(--line2); border-radius: 8px; padding: 10px 12px; }
+    .stat-label { font-size: 9px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .stat-value { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 14px; margin-top: 4px; }
+    .stat-value.ok { color: var(--ok); } .stat-value.warn { color: var(--warn); } .stat-value.err { color: var(--err); }
+    h2 { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted2); margin: 14px 0 8px; }
+    .hint { color: var(--muted2); margin-bottom: 10px; line-height: 1.45; }
+    button.btn {
+      width: 100%; text-align: left; margin: 4px 0; padding: 8px 10px;
+      background: var(--panel); color: var(--text); border: 1px solid var(--line2);
+      border-radius: 6px; cursor: pointer; font: inherit;
+    }
+    button.btn:hover { border-color: var(--accent); }
+    button.btn.primary { background: #0f2040; color: var(--accent); border-color: var(--accent); font-weight: 600; }
+    button.btn.danger { color: #fca5a5; }
+    .row { display: flex; gap: 6px; }
+    .row .btn { flex: 1; }
+    label { display: block; margin: 8px 0 4px; color: var(--muted2); font-size: 11px; }
+    input, select, textarea {
+      width: 100%; padding: 7px 8px; border-radius: 6px; border: 1px solid var(--line2);
+      background: #0f2040; color: var(--text); font: inherit;
+    }
+    textarea { min-height: 70px; resize: vertical; }
+    .step {
+      border-bottom: 1px solid var(--line2); padding: 8px 0; cursor: pointer;
+    }
+    .step:hover { background: rgba(56, 189, 248, 0.05); }
+    .step-row { display: flex; gap: 8px; align-items: flex-start; }
+    .badge { font: 700 9px/1.4 "IBM Plex Mono", ui-monospace, monospace; padding: 2px 6px; border-radius: 8px; }
+    .ok .badge { background: #14532d; color: #86efac; }
+    .fail .badge { background: #7f1d1d; color: #fca5a5; }
+    .step-name { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; color: var(--accent); }
+    .step-detail { color: var(--muted2); margin-top: 3px; line-height: 1.4; }
+    .step-next { color: #fca5a5; margin-top: 4px; }
+    .nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+    .chip { font: 10px "IBM Plex Mono", ui-monospace, monospace; border: 1px solid var(--line2); border-radius: 999px; padding: 4px 9px; color: var(--muted2); background: #0a1628; cursor: pointer; }
+    .chip:hover, .chip.ok { border-color: var(--accent); color: var(--accent); }
+    .prompt-row { display: flex; gap: 4px; }
+    .prompt-row .btn { flex: 1; }
+    .prompt-row .tiny { flex: 0 0 auto; width: auto; }
+    .log {
+      margin-top: 14px; background: #061018; border: 1px solid var(--line2); border-radius: 8px;
+      padding: 8px 10px; font: 10px/1.45 "IBM Plex Mono", ui-monospace, monospace;
+      color: var(--muted2); max-height: 140px; overflow: auto; white-space: pre-wrap;
+    }
+    .toast { margin: 8px 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line2); background: #0f2040; display: none; }
+    .toast.show { display: block; }
+    .toast.ok { border-color: var(--ok); color: #86efac; }
+    .toast.err { border-color: var(--err); color: #fca5a5; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-main">
+      <h1>MCP Platform <span>diagnostics</span></h1>
+      <span class="live"><span id="liveDot" class="dot"></span><span class="probe" id="probe">…</span></span>
+    </div>
+    <nav class="tabs">
+      <button class="tab active" data-tab="setup">Setup</button>
+      <button class="tab" data-tab="diag">Diagnose</button>
+      <button class="tab" data-tab="settings">Settings</button>
+      <button class="tab" data-tab="chat">Chat</button>
+    </nav>
+  </header>
+  <main class="main">
+    <div class="stats">
+      <div class="stat"><div class="stat-label">Native stdio</div><div class="stat-value" id="statNative">—</div></div>
+      <div class="stat"><div class="stat-label">Local Podman</div><div class="stat-value" id="statPodman">—</div></div>
+      <div class="stat"><div class="stat-label">Code Engine</div><div class="stat-value" id="statRemote">—</div></div>
+      <div class="stat"><div class="stat-label">Diagnose</div><div class="stat-value" id="statDiag">idle</div></div>
+    </div>
+    <div class="nav">
+      <span class="chip" data-cmd="openPanel">Open panel</span>
+      <span class="chip" data-cmd="health">/health</span>
+      <span class="chip" data-cmd="test">/test</span>
+      <span class="chip" data-cmd="admin">/admin</span>
+      <span class="chip" data-cmd="tools">/tools</span>
+      <span class="chip" data-cmd="focusTree">Resources</span>
+    </div>
+    <div id="toast" class="toast"></div>
+
+    <section id="setup" class="pane active">
+      <p class="hint">Three ways to run the same MCP. Connecting one does not replace the others.</p>
+      <h2>Native stdio</h2>
+      <button class="btn primary" data-cmd="local">Connect native stdio · node</button>
+      <button class="btn" data-cmd="http">Start native HTTP</button>
+      <h2>Local Podman</h2>
+      <button class="btn primary" data-cmd="podmanStart">Build &amp; start Podman HTTP</button>
+      <div class="row">
+        <button class="btn" data-cmd="podmanStdio">Connect stdio</button>
+        <button class="btn" data-cmd="podmanHttp">Connect HTTP</button>
+      </div>
+      <button class="btn danger" data-cmd="podmanStop">Stop container</button>
+      <h2>Remote Code Engine</h2>
+      <button class="btn primary" data-cmd="remote">Connect remote Code Engine</button>
+      <button class="btn" data-cmd="discover">Discover mcp.json</button>
+    </section>
+
+    <section id="diag" class="pane">
+      <p class="hint">Same checklist as the Code Engine MCP extension: config present, process alive, tools/list, one real call.</p>
+      <button class="btn primary" data-cmd="diagnose">Run diagnostics</button>
+      <div id="results"></div>
+    </section>
+
+    <section id="settings" class="pane">
+      <p class="hint">Workspace <code>summitMcp.*</code> settings. Probe target chooses which URL Diagnose opens.</p>
+      <label>Probe target</label>
+      <select id="probeTarget">
+        <option value="auto">auto (remote URL, else local HTTP)</option>
+        <option value="native-http">native HTTP</option>
+        <option value="podman">local Podman</option>
+        <option value="remote">remote Code Engine</option>
+      </select>
+      <label>Remote Code Engine URL</label>
+      <input id="remoteUrl" placeholder="https://mcp-ticket-demo.…codeengine.appdomain.cloud">
+      <label>Local HTTP URL</label>
+      <input id="localHttpUrl">
+      <label>Podman image</label>
+      <input id="podmanImage">
+      <label>Podman container</label>
+      <input id="podmanContainer">
+      <label>Podman host port</label>
+      <input id="podmanPort">
+      <label>Admin user</label>
+      <input id="adminUser">
+      <label>Admin password</label>
+      <input id="adminPassword" type="password">
+      <label>Demo token</label>
+      <input id="demoToken">
+      <button class="btn primary" data-cmd="saveSettings">Save settings</button>
+    </section>
+
+    <section id="chat" class="pane">
+      <p class="hint">File a talk-scar prompt into this editor’s LLM chat. Clipboard is the fallback.</p>
+      <div id="prompts"></div>
+      <label>Your own prompt</label>
+      <textarea id="customPrompt" placeholder="Search open tickets using the summit ticket MCP."></textarea>
+      <button class="btn primary" data-cmd="customChat">Send to chat</button>
+    </section>
+
+    <div class="log" id="log">Ready.</div>
+  </main>
+  <script>
+    const vscode = acquireVsCodeApi();
+    const logEl = document.getElementById("log");
+    const toastEl = document.getElementById("toast");
+    function log(line) {
+      logEl.textContent = (logEl.textContent === "Ready." ? "" : logEl.textContent + "\\n") + line;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    function toast(text, kind) {
+      toastEl.textContent = text;
+      toastEl.className = "toast show " + (kind || "");
+      setTimeout(() => toastEl.classList.remove("show"), 4000);
+    }
+    function showTab(id) {
+      document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === id));
+      document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("active", p.id === id));
+    }
+    document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => showTab(tab.dataset.tab)));
+    function post(command, extra) { vscode.postMessage(Object.assign({ command: command }, extra || {})); }
+    document.querySelectorAll("[data-cmd]").forEach((el) => {
+      el.addEventListener("click", () => {
+        if (el.dataset.cmd === "saveSettings") {
+          post("saveSettings", { values: {
+            probeTarget: document.getElementById("probeTarget").value,
+            remoteUrl: document.getElementById("remoteUrl").value,
+            localHttpUrl: document.getElementById("localHttpUrl").value,
+            podmanImage: document.getElementById("podmanImage").value,
+            podmanContainer: document.getElementById("podmanContainer").value,
+            podmanPort: Number(document.getElementById("podmanPort").value),
+            adminUser: document.getElementById("adminUser").value,
+            adminPassword: document.getElementById("adminPassword").value,
+            demoToken: document.getElementById("demoToken").value,
+          }});
+          return;
+        }
+        if (el.dataset.cmd === "customChat") {
+          post("chat", { text: document.getElementById("customPrompt").value });
+          return;
+        }
+        post(el.dataset.cmd);
+      });
+    });
+    function renderSteps(steps) {
+      const root = document.getElementById("results");
+      if (!steps || !steps.length) { root.innerHTML = "<p class='hint'>Not run yet.</p>"; return; }
+      root.innerHTML = steps.map((s) =>
+        "<div class='step " + (s.ok ? "ok" : "fail") + "'>" +
+          "<div class='step-row'><span class='badge'>" + (s.ok ? "PASS" : "FAIL") + "</span>" +
+          "<div><div class='step-name'>" + esc(s.name) + "</div>" +
+          "<div class='step-detail'>" + esc(s.detail || "") + "</div>" +
+          (s.next ? "<div class='step-next'>" + esc(s.next) + "</div>" : "") +
+          "</div></div></div>"
+      ).join("");
+    }
+    function esc(v) { return String(v ?? "").replace(/[&<>\"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c])); }
+    function setStat(id, label, ok) {
+      const el = document.getElementById(id);
+      el.textContent = label;
+      el.className = "stat-value " + (ok ? "ok" : "warn");
+    }
+    function applyState(state) {
+      document.getElementById("probe").textContent = state.probe || "no probe URL";
+      document.getElementById("liveDot").className = "dot" + (state.live ? " on" : "");
+      setStat("statNative", state.native.label, state.native.ok);
+      setStat("statPodman", state.podman.label, state.podman.ok);
+      setStat("statRemote", state.remote.label, state.remote.ok);
+      const diag = document.getElementById("statDiag");
+      if (state.diag) {
+        diag.textContent = state.diag.ok ? "PASS" : "FAIL";
+        diag.className = "stat-value " + (state.diag.ok ? "ok" : "err");
+      }
+      const s = state.settings || {};
+      ["probeTarget","remoteUrl","localHttpUrl","podmanImage","podmanContainer","podmanPort","adminUser","adminPassword","demoToken"].forEach((k) => {
+        const el = document.getElementById(k);
+        if (el && s[k] !== undefined && s[k] !== null) el.value = s[k];
+      });
+      if (state.prompts) {
+        document.getElementById("prompts").innerHTML = state.prompts.map((p) =>
+          "<div class='prompt-row'><button class='btn' data-chat='" + esc(p.text) + "'>" + esc(p.title) + "</button>" +
+          "<button class='btn tiny' data-copy='" + esc(p.text) + "'>Copy</button></div>"
+        ).join("");
+        document.querySelectorAll("[data-chat]").forEach((b) => b.addEventListener("click", () => post("chat", { text: b.dataset.chat })));
+        document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", () => post("copy", { text: b.dataset.copy })));
+      }
+      if (state.steps) renderSteps(state.steps);
+      if (state.tab) showTab(state.tab);
+      if (state.log) log(state.log);
+    }
+    window.addEventListener("message", (event) => {
+      const msg = event.data || {};
+      if (msg.type === "state") applyState(msg.state);
+      if (msg.type === "log") log(msg.text);
+      if (msg.type === "toast") toast(msg.text, msg.kind);
+      if (msg.type === "diagnostics") {
+        renderSteps(msg.steps);
+        showTab("diag");
+        const diag = document.getElementById("statDiag");
+        diag.textContent = msg.ok ? "PASS" : "FAIL";
+        diag.className = "stat-value " + (msg.ok ? "ok" : "err");
+        log("Diagnostics " + (msg.ok ? "passed" : "found a failure"));
+      }
+    });
+    post("ready");
+  </script>
+</body>
+</html>

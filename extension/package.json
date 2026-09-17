@@ -1,0 +1,203 @@
+{
+  "name": "summit-mcp-platform",
+  "displayName": "MCP Platform Demo",
+  "description": "Control plane for the summit ticket MCP — native stdio, local Podman, remote Code Engine, diagnostics panel, and chat prompts.",
+  "version": "1.2.0",
+  "publisher": "markusvankempen",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["AI", "Chat", "Other"],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./src/extension.js",
+  "scripts": {
+    "package": "vsce package --no-dependencies --allow-missing-repository --allow-star-activation"
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "summitMcp",
+          "title": "MCP Platform",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "summitMcp": [
+        {
+          "id": "summitMcp.setup",
+          "name": "Setup & Diagnostics",
+          "type": "webview"
+        },
+        {
+          "id": "summitMcp.resources",
+          "name": "Resources",
+          "type": "tree"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "summitMcp.discover",
+        "title": "MCP Platform: Discover mcp.json"
+      },
+      {
+        "command": "summitMcp.connectLocal",
+        "title": "MCP Platform: Connect native stdio"
+      },
+      {
+        "command": "summitMcp.connectRemote",
+        "title": "MCP Platform: Connect remote Code Engine"
+      },
+      {
+        "command": "summitMcp.connectPodmanStdio",
+        "title": "MCP Platform: Connect Podman stdio"
+      },
+      {
+        "command": "summitMcp.connectPodmanHttp",
+        "title": "MCP Platform: Connect Podman HTTP"
+      },
+      {
+        "command": "summitMcp.podmanStart",
+        "title": "MCP Platform: Build & start local Podman"
+      },
+      {
+        "command": "summitMcp.podmanStop",
+        "title": "MCP Platform: Stop local Podman"
+      },
+      {
+        "command": "summitMcp.diagnose",
+        "title": "MCP Platform: Diagnose"
+      },
+      {
+        "command": "summitMcp.fillChat",
+        "title": "MCP Platform: Send prompt to chat"
+      },
+      {
+        "command": "summitMcp.chatSearch",
+        "title": "MCP Platform: Chat — search open tickets"
+      },
+      {
+        "command": "summitMcp.saveSettings",
+        "title": "MCP Platform: Save settings"
+      },
+      {
+        "command": "summitMcp.openHealth",
+        "title": "MCP Platform: Open /health"
+      },
+      {
+        "command": "summitMcp.openTest",
+        "title": "MCP Platform: Open /test"
+      },
+      {
+        "command": "summitMcp.openAdmin",
+        "title": "MCP Platform: Open /admin"
+      },
+      {
+        "command": "summitMcp.openTools",
+        "title": "MCP Platform: Open /tools"
+      },
+      {
+        "command": "summitMcp.openPanel",
+        "title": "MCP Platform: Open diagnostics panel",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "summitMcp.startLocalHttp",
+        "title": "MCP Platform: Start native HTTP server"
+      },
+      {
+        "command": "summitMcp.showMenu",
+        "title": "MCP Platform: Show quick menu"
+      },
+      {
+        "command": "summitMcp.openConfig",
+        "title": "MCP Platform: Open mcp.json"
+      },
+      {
+        "command": "summitMcp.refreshTree",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "summitMcp.refreshTree",
+          "when": "view == summitMcp.resources",
+          "group": "navigation"
+        },
+        {
+          "command": "summitMcp.openPanel",
+          "when": "view == summitMcp.setup || view == summitMcp.resources",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "MCP Platform Demo",
+      "properties": {
+        "summitMcp.probeTarget": {
+          "type": "string",
+          "enum": ["auto", "native-http", "podman", "remote"],
+          "default": "auto",
+          "description": "Which HTTP surface Diagnose and /health open. auto uses the Code Engine URL when set."
+        },
+        "summitMcp.remoteUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Public Code Engine URL, no trailing slash."
+        },
+        "summitMcp.localHttpUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8787",
+          "description": "Local native HTTP server for /health /test /admin."
+        },
+        "summitMcp.podmanImage": {
+          "type": "string",
+          "default": "mcp-ticket-demo:local",
+          "description": "Local Podman image name built from mcp-ticket-demo/Dockerfile."
+        },
+        "summitMcp.podmanContainer": {
+          "type": "string",
+          "default": "mcp-ticket-demo",
+          "description": "Local Podman container name."
+        },
+        "summitMcp.podmanPort": {
+          "type": "number",
+          "default": 8787,
+          "description": "Host port mapped to container 8080."
+        },
+        "summitMcp.adminUser": {
+          "type": "string",
+          "default": "demo",
+          "description": "Admin username for /admin."
+        },
+        "summitMcp.adminPassword": {
+          "type": "string",
+          "default": "demo",
+          "description": "Admin password for /admin. Do not use this default in production."
+        },
+        "summitMcp.demoToken": {
+          "type": "string",
+          "default": "demo-token",
+          "description": "Legacy single bearer token, still accepted by the server. Prefer an API key."
+        },
+        "summitMcp.apiKey": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "API key to present when calling tools. Issue one on `/admin` → API keys. Sent as `Authorization: Bearer <key>` over HTTP, and as `MCP_API_KEY` to a stdio or Podman server."
+        },
+        "summitMcp.authMode": {
+          "type": "string",
+          "enum": ["off", "write", "all"],
+          "default": "off",
+          "markdownDescription": "Auth mode the local server boots with: `off` (nothing gated), `write` (write and PII tools need a credential), `all` (every tool call does)."
+        }
+      }
+    }
+  }
+}
