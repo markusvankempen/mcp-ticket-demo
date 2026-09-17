@@ -1,4 +1,6 @@
-# Talk points → this demo
+# Talk points → MCP Demo
+
+Companion for [**MCP as a Platform**](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401) · [MCP Dev Summit Toronto](https://events.linuxfoundation.org/mcp-dev-summit-toronto/) · Monday 5 October 2026, 12:00–12:25 EDT · [github.com/markusvankempen/mcp-ticket-demo](https://github.com/markusvankempen/mcp-ticket-demo)
 
 Maps `talk-02-mcp-as-a-platform-portfolio-slides` onto something you can click.
 

@@ -1,6 +1,6 @@
 # MCP Platform Demo
 
-Control plane for the summit ticket MCP.
+Control plane for **MCP Demo** — the companion server for [MCP as a Platform](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401) at [MCP Dev Summit Toronto](https://events.linuxfoundation.org/mcp-dev-summit-toronto/).
 
 - **Native stdio** — `node`, no container
 - **Local Podman** — same Dockerfile as Code Engine

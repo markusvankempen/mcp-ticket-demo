@@ -1,6 +1,10 @@
-# Summit ticket MCP
+# MCP Demo
 
-I built this because I wanted something I could point at during MCP Dev Summit Toronto and say: here's the architecture from the talk, running twice — once on the laptop, once on IBM Cloud Code Engine — with an editor extension that is the control plane.
+Companion repo for [**MCP as a Platform: What I Learned Building a Portfolio of MCP Servers**](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401) · [MCP Dev Summit Toronto](https://events.linuxfoundation.org/mcp-dev-summit-toronto/) · Monday 5 October 2026, 12:00–12:25 EDT
+
+**Clone:** [github.com/markusvankempen/mcp-ticket-demo](https://github.com/markusvankempen/mcp-ticket-demo)
+
+I built this because I wanted something I could point at on stage and say: here's the architecture from the talk, running twice — once on the laptop, once on IBM Cloud Code Engine — with an editor extension that is the control plane.
 
 Personal open-source demo. **Not an IBM product.**
 
@@ -76,7 +80,7 @@ npm run stdio
 
 No port. No URL. The client talks over stdin/stdout.
 
-Load the extension (`mcp-ticket-demo/extension/summit-mcp-platform-1.1.0.vsix`, or F5). The sidebar has Setup, Diagnose, Settings, and Chat. **Connect native stdio** writes the Node MCP. **Build & start local Podman** uses the same image as Code Engine. **Chat** files a prompt into the LLM. Reload the window after Connect.
+Load the extension (build with `npm run package` in `extension/`, or F5 in the Extension Development Host). The sidebar has Setup, Diagnose, Settings, and Chat. **Connect native stdio** writes the Node MCP. **Build & start local Podman** uses the same image as Code Engine. **Chat** files a prompt into the LLM. Reload the window after Connect.
 
 IBM Bob: [docs/BOB.md](docs/BOB.md). Open the repo root, MCP tab, **Use MCP Servers**.
 
@@ -147,7 +151,7 @@ On Code Engine those values live on the application, not in `mcp.json`.
 
 ## Remote deploy
 
-IBM Cloud Code Engine, Toronto (`ca-tor`), same project as the other summit demos. Image builds from this folder so the process starts at `/app`.
+IBM Cloud Code Engine, Toronto (`ca-tor`). Image builds from this folder so the process starts at `/app`.
 
 ```bash
 # from repo root, after the image is in ICR

@@ -1,7 +1,7 @@
 {
   "name": "summit-mcp-platform",
-  "displayName": "MCP Platform Demo",
-  "description": "Control plane for the summit ticket MCP — native stdio, local Podman, remote Code Engine, diagnostics panel, and chat prompts.",
+  "displayName": "MCP Demo",
+  "description": "Control plane for the MCP Dev Summit Toronto demo server — native stdio, local Podman, remote Code Engine, diagnostics panel, and chat prompts.",
   "version": "1.2.0",
   "publisher": "markusvankempen",
   "engines": {
@@ -20,7 +20,7 @@
       "activitybar": [
         {
           "id": "summitMcp",
-          "title": "MCP Platform",
+          "title": "MCP Demo",
           "icon": "media/icon.svg"
         }
       ]
@@ -42,80 +42,80 @@
     "commands": [
       {
         "command": "summitMcp.discover",
-        "title": "MCP Platform: Discover mcp.json"
+        "title": "MCP Demo: Discover mcp.json"
       },
       {
         "command": "summitMcp.connectLocal",
-        "title": "MCP Platform: Connect native stdio"
+        "title": "MCP Demo: Connect native stdio"
       },
       {
         "command": "summitMcp.connectRemote",
-        "title": "MCP Platform: Connect remote Code Engine"
+        "title": "MCP Demo: Connect remote Code Engine"
       },
       {
         "command": "summitMcp.connectPodmanStdio",
-        "title": "MCP Platform: Connect Podman stdio"
+        "title": "MCP Demo: Connect Podman stdio"
       },
       {
         "command": "summitMcp.connectPodmanHttp",
-        "title": "MCP Platform: Connect Podman HTTP"
+        "title": "MCP Demo: Connect Podman HTTP"
       },
       {
         "command": "summitMcp.podmanStart",
-        "title": "MCP Platform: Build & start local Podman"
+        "title": "MCP Demo: Build & start local Podman"
       },
       {
         "command": "summitMcp.podmanStop",
-        "title": "MCP Platform: Stop local Podman"
+        "title": "MCP Demo: Stop local Podman"
       },
       {
         "command": "summitMcp.diagnose",
-        "title": "MCP Platform: Diagnose"
+        "title": "MCP Demo: Diagnose"
       },
       {
         "command": "summitMcp.fillChat",
-        "title": "MCP Platform: Send prompt to chat"
+        "title": "MCP Demo: Send prompt to chat"
       },
       {
         "command": "summitMcp.chatSearch",
-        "title": "MCP Platform: Chat — search open tickets"
+        "title": "MCP Demo: Chat — search open tickets"
       },
       {
         "command": "summitMcp.saveSettings",
-        "title": "MCP Platform: Save settings"
+        "title": "MCP Demo: Save settings"
       },
       {
         "command": "summitMcp.openHealth",
-        "title": "MCP Platform: Open /health"
+        "title": "MCP Demo: Open /health"
       },
       {
         "command": "summitMcp.openTest",
-        "title": "MCP Platform: Open /test"
+        "title": "MCP Demo: Open /test"
       },
       {
         "command": "summitMcp.openAdmin",
-        "title": "MCP Platform: Open /admin"
+        "title": "MCP Demo: Open /admin"
       },
       {
         "command": "summitMcp.openTools",
-        "title": "MCP Platform: Open /tools"
+        "title": "MCP Demo: Open /tools"
       },
       {
         "command": "summitMcp.openPanel",
-        "title": "MCP Platform: Open diagnostics panel",
+        "title": "MCP Demo: Open diagnostics panel",
         "icon": "$(graph)"
       },
       {
         "command": "summitMcp.startLocalHttp",
-        "title": "MCP Platform: Start native HTTP server"
+        "title": "MCP Demo: Start native HTTP server"
       },
       {
         "command": "summitMcp.showMenu",
-        "title": "MCP Platform: Show quick menu"
+        "title": "MCP Demo: Show quick menu"
       },
       {
         "command": "summitMcp.openConfig",
-        "title": "MCP Platform: Open mcp.json"
+        "title": "MCP Demo: Open mcp.json"
       },
       {
         "command": "summitMcp.refreshTree",

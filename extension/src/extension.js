@@ -149,7 +149,7 @@ async function activate(context) {
   register("summitMcp.podmanStart", async () => {
     await vscode.window.withProgress({
       location: vscode.ProgressLocation.Notification,
-      title: "Summit ticket MCP · Podman",
+      title: "MCP Demo · Podman",
       cancellable: false,
     }, async (progress) => {
       progress.report({ message: "Detecting Podman…" });
