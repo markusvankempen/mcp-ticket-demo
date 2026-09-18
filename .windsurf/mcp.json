@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "mcp-ticket-demo": {
+      "command": "node",
+      "args": [
+        "src/index.js"
+      ],
+      "cwd": "/Users/markusvankempen/projects/mcp-ticket-demo/server",
+      "env": {
+        "MCP_MODE": "stdio"
+      }
+    }
+  }
+}

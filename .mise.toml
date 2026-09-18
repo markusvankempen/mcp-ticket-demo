@@ -1,0 +1,60 @@
+[tools]
+node = "22"
+
+[settings]
+experimental = true
+
+# ── server tasks ──────────────────────────────────────────────────────────────
+[tasks.install]
+description = "Install server dependencies"
+dir = "server"
+run = "npm install"
+
+[tasks.test]
+description = "Run server smoke test"
+dir = "server"
+run = "npm test"
+depends = ["install"]
+
+[tasks.test-smoke]
+description = "Run server HTTP smoke test"
+dir = "server"
+run = "npm run test:smoke"
+depends = ["install"]
+
+[tasks.start-http]
+description = "Start server in HTTP mode on port 8787"
+dir = "server"
+run = "MCP_MODE=http PORT=8787 node src/index.js"
+depends = ["install"]
+
+[tasks.start-stdio]
+description = "Start server in stdio mode"
+dir = "server"
+run = "MCP_MODE=stdio node src/index.js"
+depends = ["install"]
+
+[tasks.publish-npm]
+description = "Publish server to npm"
+dir = "server"
+run = "npm publish --access public"
+
+[tasks.publish-mcp]
+description = "Publish server to MCP Registry (requires mcp-publisher login)"
+dir = "server"
+run = "mcp-publisher publish"
+
+# ── extension tasks ───────────────────────────────────────────────────────────
+[tasks.ext-package]
+description = "Package the VS Code extension (.vsix)"
+dir = "extension"
+run = "npm run package"
+
+# ── combined tasks ────────────────────────────────────────────────────────────
+[tasks.ci]
+description = "Full CI: install, test, package extension"
+depends = ["install", "test", "ext-package"]
+
+[tasks.release]
+description = "Publish npm + MCP registry (run after bumping versions)"
+depends = ["publish-npm", "publish-mcp"]

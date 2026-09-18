@@ -46,7 +46,7 @@
     .main { padding: 12px 12px 28px; }
     .pane { display: none; } .pane.active { display: block; }
     .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
-    @media (min-width: 520px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+    @media (min-width: 520px) { .stats { grid-template-columns: repeat(5, 1fr); } }
     .stat { background: var(--panel); border: 1px solid var(--line2); border-radius: 8px; padding: 10px 12px; }
     .stat-label { font-size: 9px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
     .stat-value { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 14px; margin-top: 4px; }
@@ -106,6 +106,7 @@
     <nav class="tabs">
       <button class="tab active" data-tab="setup">Setup</button>
       <button class="tab" data-tab="diag">Diagnose</button>
+      <button class="tab" data-tab="mcpTest">MCP Test</button>
       <button class="tab" data-tab="settings">Settings</button>
       <button class="tab" data-tab="chat">Chat</button>
     </nav>
@@ -115,6 +116,7 @@
       <div class="stat"><div class="stat-label">Native stdio</div><div class="stat-value" id="statNative">—</div></div>
       <div class="stat"><div class="stat-label">Local Podman</div><div class="stat-value" id="statPodman">—</div></div>
       <div class="stat"><div class="stat-label">Code Engine</div><div class="stat-value" id="statRemote">—</div></div>
+      <div class="stat"><div class="stat-label">npm update</div><div class="stat-value" id="statNpm">—</div></div>
       <div class="stat"><div class="stat-label">Diagnose</div><div class="stat-value" id="statDiag">idle</div></div>
     </div>
     <div class="nav">
@@ -123,17 +125,21 @@
       <span class="chip" data-cmd="test">/test</span>
       <span class="chip" data-cmd="admin">/admin</span>
       <span class="chip" data-cmd="tools">/tools</span>
+      <span class="chip" data-cmd="help">/help</span>
       <span class="chip" data-cmd="focusTree">Resources</span>
     </div>
     <div id="toast" class="toast"></div>
 
     <section id="setup" class="pane active">
       <p class="hint">Three ways to run the same MCP. Connecting one does not replace the others.</p>
+      <h2>Register with IDE</h2>
+      <button class="btn primary" data-cmd="registerIde">&#x2795; Register server with all IDEs</button>
+      <div id="registerResult" style="display:none; margin:6px 0; padding:8px 10px; border-radius:6px; border:1px solid var(--line2); background:#0f2040; font:10px/1.5 'IBM Plex Mono',ui-monospace,monospace; color:var(--muted2); white-space:pre;"></div>
       <h2>Native stdio</h2>
-      <button class="btn primary" data-cmd="local">Connect native stdio · node</button>
+      <button class="btn" data-cmd="local">Connect native stdio · node</button>
       <button class="btn" data-cmd="http">Start native HTTP</button>
-      <h2>Local Podman</h2>
-      <button class="btn primary" data-cmd="podmanStart">Build &amp; start Podman HTTP</button>
+      <h2>Container <span id="runtimeBadge" style="display:none; font:10px 'IBM Plex Mono',ui-monospace,monospace; border:1px solid var(--line2); border-radius:999px; padding:2px 8px; color:var(--accent); vertical-align:middle; margin-left:4px;"></span></h2>
+      <button class="btn primary" data-cmd="podmanStart">Build &amp; start container HTTP</button>
       <div class="row">
         <button class="btn" data-cmd="podmanStdio">Connect stdio</button>
         <button class="btn" data-cmd="podmanHttp">Connect HTTP</button>
@@ -148,6 +154,12 @@
       <p class="hint">Same checklist as the Code Engine MCP extension: config present, process alive, tools/list, one real call.</p>
       <button class="btn primary" data-cmd="diagnose">Run diagnostics</button>
       <div id="results"></div>
+    </section>
+
+    <section id="mcpTest" class="pane">
+      <p class="hint">Full CRUD test using MCP tools over HTTP. Creates a ticket, reads it back, adds a comment, then searches. Requires the HTTP server to be running.</p>
+      <button class="btn primary" data-cmd="runMcpCrud">Run MCP CRUD test</button>
+      <div id="mcpTestResults"></div>
     </section>
 
     <section id="settings" class="pane">
@@ -179,7 +191,7 @@
     </section>
 
     <section id="chat" class="pane">
-      <p class="hint">File a talk-scar prompt into this editor’s LLM chat. Clipboard is the fallback.</p>
+      <p class="hint">File a prompt into the LLM chat. Clipboard is the fallback.</p>
       <div id="prompts"></div>
       <label>Your own prompt</label>
       <textarea id="customPrompt" placeholder="Search open tickets using the MCP Demo server."></textarea>
@@ -187,6 +199,10 @@
     </section>
 
     <div class="log" id="log">Ready.</div>
+
+    <footer style="margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 11px; color: var(--muted2); text-align: center;">
+      Markus van Kempen · <a href="https://markusvankempen.github.io/" style="color: var(--accent); text-decoration: none;">markusvankempen.github.io</a> · <a href="https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401" style="color: var(--accent); text-decoration: none;">Linux Foundation Talk</a>
+    </footer>
   </main>
   <script>
     const vscode = acquireVsCodeApi();
@@ -227,6 +243,18 @@
           post("chat", { text: document.getElementById("customPrompt").value });
           return;
         }
+        if (el.dataset.cmd === "registerIde") {
+          const btn = el;
+          btn.disabled = true;
+          btn.textContent = "Registering…";
+          post("registerIde");
+          return;
+        }
+        if (el.dataset.cmd === "runMcpCrud") {
+          document.getElementById("mcpTestResults").innerHTML = "<p class='hint' style='margin-top:8px'>Running…</p>";
+          post("runMcpCrud");
+          return;
+        }
         post(el.dataset.cmd);
       });
     });
@@ -254,6 +282,7 @@
       setStat("statNative", state.native.label, state.native.ok);
       setStat("statPodman", state.podman.label, state.podman.ok);
       setStat("statRemote", state.remote.label, state.remote.ok);
+      if (state.npm) setStat("statNpm", state.npm.label, state.npm.ok);
       const diag = document.getElementById("statDiag");
       if (state.diag) {
         diag.textContent = state.diag.ok ? "PASS" : "FAIL";
@@ -272,21 +301,68 @@
         document.querySelectorAll("[data-chat]").forEach((b) => b.addEventListener("click", () => post("chat", { text: b.dataset.chat })));
         document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", () => post("copy", { text: b.dataset.copy })));
       }
+      if (state.containerRuntime !== undefined) {
+        const badge = document.getElementById("runtimeBadge");
+        if (badge) {
+          if (state.containerRuntime) {
+            badge.textContent = state.containerRuntime;
+            badge.style.display = "inline";
+          } else {
+            badge.textContent = "not found";
+            badge.style.display = "inline";
+            badge.style.color = "var(--err)";
+          }
+        }
+      }
       if (state.steps) renderSteps(state.steps);
       if (state.tab) showTab(state.tab);
       if (state.log) log(state.log);
+    }
+    function renderMcpTest(steps) {
+      const root = document.getElementById("mcpTestResults");
+      if (!steps || !steps.length) { root.innerHTML = "<p class='hint'>Not run yet.</p>"; return; }
+      root.innerHTML = steps.map((s) =>
+        "<div class='step " + (s.ok ? "ok" : "fail") + "'>" +
+          "<div class='step-row'><span class='badge'>" + (s.ok ? "PASS" : "FAIL") + "</span>" +
+          "<div><div class='step-name'>" + esc(s.name) + "</div>" +
+          "<div class='step-detail'>" + esc(s.detail || "") + "</div>" +
+          (s.next ? "<div class='step-next'>" + esc(s.next) + "</div>" : "") +
+          "</div></div></div>"
+      ).join("");
     }
     window.addEventListener("message", (event) => {
       const msg = event.data || {};
       if (msg.type === "state") applyState(msg.state);
       if (msg.type === "log") log(msg.text);
       if (msg.type === "toast") toast(msg.text, msg.kind);
+      if (msg.type === "mcpTestResult") {
+        renderMcpTest(msg.steps);
+        showTab("mcpTest");
+        log("MCP CRUD test " + (msg.ok ? "passed" : "failed"));
+      }
+      if (msg.type === "registerIdeResult") {
+        const el = document.querySelector("[data-cmd='registerIde']");
+        if (el) { el.disabled = false; el.innerHTML = "&#x2795; Register server with all IDEs"; }
+        const box = document.getElementById("registerResult");
+        box.style.display = "block";
+        box.style.color = msg.ok ? "var(--ok)" : "var(--err)";
+        box.textContent = msg.detail;
+        log(msg.detail);
+        if (msg.ok) toast("Registered! Reload the window to activate the server.", "ok");
+      }
       if (msg.type === "diagnostics") {
         renderSteps(msg.steps);
         showTab("diag");
         const diag = document.getElementById("statDiag");
         diag.textContent = msg.ok ? "PASS" : "FAIL";
         diag.className = "stat-value " + (msg.ok ? "ok" : "err");
+        // surface npm update stat from steps
+        const npmStep = (msg.steps || []).find((s) => s.name && s.name.startsWith("npm version"));
+        if (npmStep) {
+          const el = document.getElementById("statNpm");
+          el.textContent = npmStep.ok ? "current" : "update!";
+          el.className = "stat-value " + (npmStep.ok ? "ok" : "warn");
+        }
         log("Diagnostics " + (msg.ok ? "passed" : "found a failure"));
       }
     });

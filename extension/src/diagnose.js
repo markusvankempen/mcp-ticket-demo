@@ -1,5 +1,7 @@
-const { discover, httpBase, settings, podmanHttpUrl } = require("./config");
+const { discover, httpBase, settings, podmanHttpUrl, serverDir } = require("./config");
 const podman = require("./podman");
+const fs = require("fs");
+const path = require("path");
 
 async function fetchJson(url, options = {}) {
   const started = Date.now();
@@ -49,6 +51,59 @@ async function searchCall(base) {
   });
 }
 
+async function npmVersionCheck() {
+  const pkgFile = path.join(serverDir(), "package.json");
+  let localVersion = null;
+  try {
+    const pkg = JSON.parse(fs.readFileSync(pkgFile, "utf8"));
+    localVersion = pkg.version || null;
+  } catch {
+    // file not found or unreadable — handled below
+  }
+
+  if (!localVersion) {
+    return {
+      name: "npm version (mcp-ticket-demo)",
+      ok: false,
+      detail: "Cannot read local server/package.json version.",
+      next: "Make sure the server folder is present (run 'Install bundled server' or clone the repo).",
+    };
+  }
+
+  const npm = await fetchJson("https://registry.npmjs.org/mcp-ticket-demo/latest");
+  if (!npm.ok || typeof npm.body !== "object" || !npm.body.version) {
+    return {
+      name: "npm version (mcp-ticket-demo)",
+      ok: true, // network is optional — don't fail the whole run
+      detail: `Local ${localVersion} · npmjs check failed (${npm.error || npm.status})`,
+    };
+  }
+
+  const latestVersion = npm.body.version;
+  const isUpToDate = localVersion === latestVersion || semverGte(localVersion, latestVersion);
+  return {
+    name: "npm version (mcp-ticket-demo)",
+    ok: isUpToDate,
+    detail: isUpToDate
+      ? `Local ${localVersion} is up to date (npm latest: ${latestVersion})`
+      : `Local ${localVersion} · npm latest: ${latestVersion} — newer version available`,
+    next: isUpToDate
+      ? undefined
+      : `Run 'npm install -g mcp-ticket-demo@latest' or pull the latest code from https://github.com/markusvankempen/mcp-ticket-demo and re-run 'cd server && npm install'.`,
+  };
+}
+
+/** Simple semver ≥ comparison (no pre-release needed here). */
+function semverGte(a, b) {
+  const pa = a.split(".").map(Number);
+  const pb = b.split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) > (pb[i] || 0)) return true;
+    if ((pa[i] || 0) < (pb[i] || 0)) return false;
+  }
+  return true;
+}
+
 async function runDiagnostics() {
   const info = discover();
   const base = httpBase();
@@ -65,29 +120,41 @@ async function runDiagnostics() {
     name: "Server package",
     ok: info.serverEntryExists,
     detail: info.serverEntry,
-    next: info.serverEntryExists ? undefined : "The server lives at mcp-ticket-demo/server/src/index.js. You are in the wrong folder, or the demo was not cloned.",
+    next: info.serverEntryExists ? undefined : "The server lives at server/src/index.js. Open the mcp-ticket-demo repo root, or re-clone the repo.",
+  });
+
+  steps.push({
+    name: "Server dependencies",
+    ok: info.serverDependenciesInstalled,
+    detail: info.serverDependenciesInstalled ? "node_modules installed in server/" : "Missing server/node_modules",
+    next: info.serverDependenciesInstalled ? undefined : "Run 'cd server && npm install' to install server dependencies (@modelcontextprotocol/sdk, express, zod).",
   });
 
   steps.push({
     name: "Native stdio (node, no Docker)",
-    ok: info.vscode.hasServer || info.cursor.hasServer || info.bob.hasServer,
-    detail: `VS Code ${info.vscode.hasServer ? "yes" : "no"} · Cursor ${info.cursor.hasServer ? "yes" : "no"} · Bob ${info.bob.hasServer ? "yes" : "no"}`,
-    next: (info.vscode.hasServer || info.cursor.hasServer || info.bob.hasServer) ? undefined : "Run Connect native stdio. That writes mcp-ticket-demo as a Node child process.",
+    ok: info.vscode.hasServer || info.cursor.hasServer || info.bob.hasServer || info.windsurf.hasServer,
+    detail: `.vscode ${info.vscode.hasServer ? "yes" : "no"} · .cursor ${info.cursor.hasServer ? "yes" : "no"} · .bob ${info.bob.hasServer ? "yes" : "no"} · .windsurf ${info.windsurf.hasServer ? "yes" : "no"}`,
+    next: (info.vscode.hasServer || info.cursor.hasServer || info.bob.hasServer || info.windsurf.hasServer) ? undefined : "Run Connect native stdio. That writes mcp-ticket-demo as a Node child process into client MCP configs.",
   });
 
   steps.push({
-    name: "Discover .bob/mcp.json",
-    ok: info.bob.exists,
-    detail: info.bob.exists ? info.bob.file : "Not written yet",
-    next: info.bob.exists ? undefined : "Run Connect native stdio so IBM Bob gets a project MCP file.",
+    name: "Client MCP config (.mcp.json)",
+    ok: info.bob.exists || info.vscode.exists || info.cursor.exists || info.windsurf.exists,
+    detail: [
+      info.bob.exists ? info.bob.file : null,
+      info.vscode.exists ? info.vscode.file : null,
+      info.cursor.exists ? info.cursor.file : null,
+      info.windsurf.exists ? info.windsurf.file : null,
+    ].filter(Boolean).join(" · ") || "Not written yet",
+    next: (info.bob.exists || info.vscode.exists || info.cursor.exists || info.windsurf.exists) ? undefined : "Run Connect native stdio to generate client MCP config files.",
   });
 
   const needPodman = settings().probeTarget === "podman";
-  const hasPodman = info.vscode.hasPodman || info.cursor.hasPodman || info.bob.hasPodman;
+  const hasPodman = info.vscode.hasPodman || info.cursor.hasPodman || info.bob.hasPodman || info.windsurf.hasPodman;
   steps.push({
     name: "Podman MCP config",
     ok: hasPodman || !needPodman,
-    detail: `VS Code ${info.vscode.hasPodman ? "yes" : "no"} · Cursor ${info.cursor.hasPodman ? "yes" : "no"} · Bob ${info.bob.hasPodman ? "yes" : "no"}`,
+    detail: `.vscode ${info.vscode.hasPodman ? "yes" : "no"} · .cursor ${info.cursor.hasPodman ? "yes" : "no"} · .bob ${info.bob.hasPodman ? "yes" : "no"} · .windsurf ${info.windsurf.hasPodman ? "yes" : "no"}`,
     next: hasPodman || !needPodman ? undefined : "Connect Podman stdio or Connect Podman HTTP after the image is built.",
   });
 
@@ -113,7 +180,7 @@ async function runDiagnostics() {
     name: "GET /health",
     ok: health.ok,
     detail: health.ok ? `${base} · ${health.status} · ${health.ms}ms · cwd=${health.body?.cwd || "?"}` : (health.error || `${base} → ${health.status}`),
-    next: health.ok ? undefined : `Start the local HTTP server (port ${settings().localHttpUrl}) or set summitMcp.remoteUrl to the Code Engine URL. A missing file in the cloud reads as 0 tools, not a connection error.`,
+    next: health.ok ? undefined : `Start the local HTTP server (${settings().localHttpUrl}) via 'Start native HTTP' or 'cd server && npm run http', or set summitMcp.remoteUrl to the Code Engine URL. Ensure 'cd server && npm install' was run.`,
     raw: health.body,
   });
 
@@ -145,7 +212,97 @@ async function runDiagnostics() {
     next: call.ok ? undefined : "If tools/list worked but the call failed, read the tool error — it is phrased as a next action.",
   });
 
+  const npmStep = await npmVersionCheck();
+  steps.push(npmStep);
+
   return { ok: steps.every((s) => s.ok), base, settings: settings(), steps, discovered: info };
 }
 
-module.exports = { runDiagnostics, fetchJson };
+async function mcpCall(base, toolName, args, auth) {
+  const headers = { "Content-Type": "application/json", Accept: "application/json, text/event-stream" };
+  if (auth) headers.Authorization = `Bearer ${auth}`;
+  return fetchJson(`${base}/mcp`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method: "tools/call", params: { name: toolName, arguments: args } }),
+  });
+}
+
+function extractContent(result) {
+  const body = result.body;
+  if (!body) return null;
+  if (typeof body === "string") return body;
+  const content = body.result?.content || body.content || [];
+  if (Array.isArray(content)) return content.map((c) => c.text || "").join("\n");
+  return JSON.stringify(body);
+}
+
+async function runMcpCrud() {
+  const base = httpBase();
+  const auth = settings().apiKey || undefined;
+  const steps = [];
+
+  // 1. search_tickets — read (baseline)
+  const list = await mcpCall(base, "search_tickets", { status: "open", limit: 3 }, auth);
+  const listText = extractContent(list) || "";
+  steps.push({
+    name: "search_tickets (read)",
+    ok: list.ok && /TCK-/.test(listText),
+    detail: list.ok ? `Found tickets: ${(listText.match(/TCK-\d+/g) || []).join(", ") || "none"}` : (list.error || `HTTP ${list.status}`),
+    next: list.ok ? undefined : `Start the HTTP server first (Start native HTTP). Probe: ${base}`,
+  });
+
+  // 2. create_ticket
+  const created = await mcpCall(base, "create_ticket", {
+    subject: "MCP CRUD test ticket",
+    body: "Created by the MCP CRUD test in the extension.",
+    requester_email: "markus.van.kempen@gmail.com",
+  }, auth);
+  const createdText = extractContent(created) || "";
+  const ticketId = (createdText.match(/TCK-\d+/) || [])[0] || null;
+  steps.push({
+    name: "create_ticket",
+    ok: created.ok && Boolean(ticketId),
+    detail: ticketId ? `Created ${ticketId}` : (created.error || createdText.slice(0, 120) || `HTTP ${created.status}`),
+    next: created.ok ? undefined : "If auth mode is write or all, set summitMcp.apiKey in Settings with a key that has write scope.",
+  });
+
+  // 3. get_ticket — read back what we just created
+  if (ticketId) {
+    const got = await mcpCall(base, "get_ticket", { id: ticketId }, auth);
+    const gotText = extractContent(got) || "";
+    steps.push({
+      name: `get_ticket (${ticketId})`,
+      ok: got.ok && gotText.includes(ticketId),
+      detail: got.ok ? `Retrieved — subject: ${gotText.match(/subject[": ]+([^\n"]+)/i)?.[1] || "ok"}` : (got.error || `HTTP ${got.status}`),
+    });
+
+    // 4. add_comment
+    const commented = await mcpCall(base, "add_comment", { id: ticketId, comment: "MCP CRUD test comment." }, auth);
+    const commentedText = extractContent(commented) || "";
+    steps.push({
+      name: `add_comment (${ticketId})`,
+      ok: commented.ok && (commentedText.includes(ticketId) || commentedText.toLowerCase().includes("comment")),
+      detail: commented.ok ? "Comment added" : (commented.error || `HTTP ${commented.status}`),
+      next: commented.ok ? undefined : "add_comment needs write scope. Check summitMcp.apiKey.",
+    });
+  } else {
+    steps.push({ name: "get_ticket", ok: false, detail: "Skipped — create_ticket failed." });
+    steps.push({ name: "add_comment", ok: false, detail: "Skipped — create_ticket failed." });
+  }
+
+  // 5. search for the ticket we just created
+  if (ticketId) {
+    const search = await mcpCall(base, "search_tickets", { status: "open", limit: 20 }, auth);
+    const searchText = extractContent(search) || "";
+    steps.push({
+      name: `search_tickets finds ${ticketId}`,
+      ok: search.ok && searchText.includes(ticketId),
+      detail: search.ok ? (searchText.includes(ticketId) ? "Found in results" : "Not yet in results — eventually consistent") : (search.error || `HTTP ${search.status}`),
+    });
+  }
+
+  return { ok: steps.every((s) => s.ok), steps, base };
+}
+
+module.exports = { runDiagnostics, runMcpCrud, fetchJson };

@@ -1,17 +1,71 @@
 {
   "name": "mcp-ticket-demo",
-  "version": "1.0.0",
-  "description": "Demo MCP server for ticket workflows — local stdio and remote HTTP.",
+  "version": "1.4.0",
+  "mcpName": "io.github.markusvankempen/mcp-ticket-demo",
+  "description": "Demo MCP server for ticket workflows — local stdio and remote HTTP. Teaches real-world MCP patterns: tool naming, attribution, schema discovery, auth, and PII gating.",
   "type": "module",
   "main": "src/index.js",
   "bin": {
     "mcp-ticket-demo": "src/index.js"
   },
+  "files": [
+    "src",
+    "README.md",
+    "server.json"
+  ],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "mcp-client",
+    "ai-tools",
+    "llm",
+    "agent",
+    "agentic",
+    "stdio",
+    "streamable-http",
+    "sse",
+    "tickets",
+    "helpdesk",
+    "demo",
+    "tutorial",
+    "ibm",
+    "ibm-cloud",
+    "linux-foundation",
+    "mcp-dev-summit",
+    "toronto",
+    "podman",
+    "code-engine",
+    "vscode",
+    "cursor",
+    "windsurf",
+    "copilot",
+    "bob",
+    "cline"
+  ],
+  "author": {
+    "name": "Markus van Kempen",
+    "email": "markus.van.kempen@gmail.com",
+    "url": "https://markusvankempen.github.io/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/markusvankempen/mcp-ticket-demo.git"
+  },
+  "homepage": "https://github.com/markusvankempen/mcp-ticket-demo#readme",
+  "bugs": {
+    "url": "https://github.com/markusvankempen/mcp-ticket-demo/issues"
+  },
+  "license": "MIT",
   "scripts": {
     "start": "node src/index.js",
     "stdio": "MCP_MODE=stdio node src/index.js",
     "http": "MCP_MODE=http PORT=8787 node src/index.js",
-    "test:smoke": "MCP_MODE=http PORT=8799 node src/smoke.js"
+    "test": "node src/smoke.js",
+    "test:smoke": "MCP_MODE=http PORT=8799 node src/smoke.js",
+    "test:tools": "node src/test-tools.js",
+    "test:tools:phase1": "node src/test-tools.js --phase1",
+    "test:tools:phase2": "node src/test-tools.js --phase2"
   },
   "engines": {
     "node": ">=18"

@@ -4,3 +4,6 @@ extension/node_modules
 .env
 *.vsix
 .DS_Store
+
+# Internal documents — never publish to repo
+Internal/

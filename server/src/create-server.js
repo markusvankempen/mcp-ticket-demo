@@ -20,7 +20,9 @@ function denied(result) {
     retry_after_seconds: result.retryAfterSec,
     next: result.status === 429
       ? "Wait for the window to reset. Do not retry immediately."
-      : "Present a credential with the scope named in the error, then call the tool again.",
+      : result.status === 503
+        ? "This tool has been disabled by an administrator. Check /tools for available tools."
+        : "Present a credential with the scope named in the error, then call the tool again.",
   });
 }
 
@@ -42,18 +44,20 @@ export const TOOL_COUNT = TOOL_CATALOG.length;
 export function createMcpServer({ store, security, requestHeaders = () => ({}) }) {
   const server = new McpServer({
     name: "mcp-ticket-demo",
-    version: "1.0.0",
+    version: "1.4.0",
   });
 
   const headers = () => requestHeaders() || {};
 
   /**
-   * One gate for every tool: credential -> scope -> rate limit.
+   * One gate for every tool: credential → scope → rate limit → tool enabled check.
    * Returns the same shape as before, so callers keep reading `.ok` and `.error`.
    */
   function gate(name) {
     return security.authorizeCall(name, headers());
   }
+
+  // ── tools ──────────────────────────────────────────────────────────────────
 
   server.tool(
     "search_tickets",
@@ -64,11 +68,13 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
       query: z.string().optional().describe("Keyword against subject and body. Example: hostname"),
       limit: z.number().int().min(1).max(25).default(10).describe("Max rows. Default 10"),
     },
-    async ({ status, requester_email, query, limit }) => {
+    async (params) => {
+      const { status, requester_email, query, limit } = params;
       const allowed = gate("search_tickets");
       if (!allowed.ok) return denied(allowed);
       const rows = store.listTickets({ status, requester_email, query, limit });
       store.log({ tool: "search_tickets", count: rows.length, principal: allowed.principal.label });
+      security.recordSuccess("search_tickets", allowed.principal, { status, query, limit });
       return json({
         ok: true,
         count: rows.length,
@@ -86,10 +92,12 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
       body: z.string().describe("What happened, in the customer's words"),
       requester_email: z.string().optional().describe("Real customer email. Example: ada@example.com. Omit this only to reproduce the attribution scar."),
     },
-    async ({ subject, body, requester_email }) => {
+    async (params) => {
+      const { subject, body, requester_email } = params;
       const allowed = gate("create_ticket");
       if (!allowed.ok) return denied(allowed);
       const { ticket, usedServiceAccount } = store.createTicket({ subject, body, requester_email });
+      security.recordSuccess("create_ticket", allowed.principal, { subject, requester_email: requester_email || "(omitted)" });
       return json({
         ok: true,
         status: 201,
@@ -113,11 +121,16 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
       body: z.string().describe("Comment text"),
       author: z.string().optional().describe("Who is speaking. Example: ada@example.com"),
     },
-    async ({ ticket_id, body, author }) => {
+    async (params) => {
+      const { ticket_id, body, author } = params;
       const allowed = gate("add_comment");
       if (!allowed.ok) return denied(allowed);
       const ticket = store.addComment(ticket_id, { body, author });
-      if (!ticket) return fail(`Ticket ${ticket_id} does not exist.`, { next: "Call search_tickets with status=all and pick a real id." });
+      if (!ticket) {
+        security.recordError("add_comment", allowed.principal, { ticket_id }, `Ticket ${ticket_id} does not exist`);
+        return fail(`Ticket ${ticket_id} does not exist.`, { next: "Call search_tickets with status=all and pick a real id." });
+      }
+      security.recordSuccess("add_comment", allowed.principal, { ticket_id });
       return json({ ok: true, ticket });
     },
   );
@@ -128,11 +141,16 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
     {
       ticket_id: z.string().describe("Ticket id. Example: TCK-1001"),
     },
-    async ({ ticket_id }) => {
+    async (params) => {
+      const { ticket_id } = params;
       const allowed = gate("get_ticket");
       if (!allowed.ok) return denied(allowed);
       const ticket = store.getTicket(ticket_id);
-      if (!ticket) return fail(`Ticket ${ticket_id} does not exist.`, { next: "Call search_tickets with status=all." });
+      if (!ticket) {
+        security.recordError("get_ticket", allowed.principal, { ticket_id }, `Ticket ${ticket_id} does not exist`);
+        return fail(`Ticket ${ticket_id} does not exist.`, { next: "Call search_tickets with status=all." });
+      }
+      security.recordSuccess("get_ticket", allowed.principal, { ticket_id });
       return json({ ok: true, ticket });
     },
   );
@@ -141,9 +159,10 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
     "list_schemas",
     "List queryable schemas. Use this BEFORE run_query. This is the replacement for a pile of query_* tools — discover the shape, then run one query tool.",
     {},
-    async () => {
+    async (params) => {
       const allowed = gate("list_schemas");
       if (!allowed.ok) return denied(allowed);
+      security.recordSuccess("list_schemas", allowed.principal, {});
       return json({
         ok: true,
         schemas: Object.values(store.schemas).map(({ name, description }) => ({ name, description })),
@@ -158,11 +177,16 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
     {
       name: z.enum(["tickets", "customers", "assets"]).describe("Schema name from list_schemas"),
     },
-    async ({ name }) => {
+    async (params) => {
+      const { name } = params;
       const allowed = gate("get_schema");
       if (!allowed.ok) return denied(allowed);
       const schema = store.getSchema(name);
-      if (!schema) return fail(`No schema '${name}'.`, { next: "Call list_schemas and use a name from that list." });
+      if (!schema) {
+        security.recordError("get_schema", allowed.principal, { name }, `No schema '${name}'`);
+        return fail(`No schema '${name}'.`, { next: "Call list_schemas and use a name from that list." });
+      }
+      security.recordSuccess("get_schema", allowed.principal, { name });
       return json({ ok: true, schema });
     },
   );
@@ -176,12 +200,17 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
       fields: z.array(z.string()).optional().describe("Optional field projection. Example: [\"id\",\"subject\"]"),
       limit: z.number().int().min(1).max(50).default(10),
     },
-    async ({ schema, filter, fields, limit }) => {
+    async (params) => {
+      const { schema, filter, fields, limit } = params;
       const allowed = gate("run_query");
       if (!allowed.ok) return denied(allowed);
       const result = store.runQuery({ schema, filter, fields, limit });
-      if (result.error) return fail(result.error);
+      if (result.error) {
+        security.recordError("run_query", allowed.principal, { schema, filter }, result.error);
+        return fail(result.error);
+      }
       store.log({ tool: "run_query", schema, count: result.count, principal: allowed.principal.label });
+      security.recordSuccess("run_query", allowed.principal, { schema, filter, limit });
       return json({
         ok: true,
         ...result,
@@ -196,14 +225,19 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
     {
       email: z.string().describe("Customer email. Example: ada@example.com"),
     },
-    async ({ email }) => {
+    async (params) => {
+      const { email } = params;
       const allowed = gate("lookup_customer");
       if (!allowed.ok) return denied(allowed);
       // PII is only revealed to a caller that actually proved the pii scope.
       const reveal = allowed.authenticated && allowed.principal.scopes.includes("pii");
       const row = store.lookupCustomer(email, { reveal });
-      if (!row) return fail(`No customer ${email}.`, { next: "Try ada@example.com or sam@example.com." });
+      if (!row) {
+        security.recordError("lookup_customer", allowed.principal, { email }, `No customer ${email}`);
+        return fail(`No customer ${email}.`, { next: "Try ada@example.com or sam@example.com." });
+      }
       store.log({ tool: "lookup_customer", email, redacted: !reveal, principal: allowed.principal.label });
+      security.recordSuccess("lookup_customer", allowed.principal, { email });
       return json({
         ok: true,
         customer: row,
@@ -216,18 +250,19 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
 
   server.tool(
     "describe_server",
-    "Discover this server before you call anything else: identity, transport, auth mode, who the server thinks you are, which scopes you hold, your rate-limit budget, and every tool with the scope it needs. Call this first when a call was denied — it tells you exactly which credential is missing.",
+    "Discover this server before you call anything else: identity, transport, auth mode, who the server thinks you are, which scopes you hold, your rate-limit budget, and every tool with the scope it needs and whether it is currently available. Call this first when a call was denied — it tells you exactly which credential is missing.",
     {},
-    async () => {
+    async (params) => {
       // Open in every mode, but still rate limited — that is what the gate returns here.
       const allowed = gate("describe_server");
       if (!allowed.ok) return denied(allowed);
-      const snapshot = security.snapshot();
+      const snap = security.snapshot();
       const principal = allowed.principal;
       const rate = security.rateSnapshot(principal.id);
+      security.recordSuccess("describe_server", allowed.principal, {});
       return json({
         ok: true,
-        server: { name: "mcp-ticket-demo", version: "1.0.0", tool_count: TOOL_COUNT },
+        server: { name: "mcp-ticket-demo", version: "1.4.0", tool_count: TOOL_COUNT },
         you: {
           principal: principal.label,
           type: principal.type,
@@ -237,31 +272,32 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
           problem: principal.error,
         },
         auth: {
-          mode: snapshot.authMode,
-          modes: snapshot.authModes,
+          mode: snap.authMode,
+          modes: snap.authModes,
           meaning: {
             off: "no credential needed",
-            write: "read tools open, write and PII tools need a credential",
-            all: "every tool call needs a credential",
-          }[snapshot.authMode],
+            write: "read tools open, write and PII tools require authentication",
+            all: "every tool call requires authentication",
+          }[snap.authMode],
           accepted: [
             "Authorization: Bearer <api key>",
             "Authorization: Basic base64(username:password)",
             "x-api-key: <api key>",
             "stdio: MCP_API_KEY or MCP_USERNAME + MCP_PASSWORD in the server env",
           ],
-          active_api_keys: snapshot.activeKeyCount,
-          tenant_header_required: snapshot.tenantRequired,
+          active_api_keys: snap.activeKeyCount,
+          tenant_header_required: snap.tenantRequired,
         },
         rate_limit: rate,
         tools: TOOL_CATALOG.map(([name, scope, purpose]) => ({
           name,
           required_scope: scope,
           credential_required_now: security.authRequiredFor(name),
+          available: snap.toolGates[name] !== false,
           purpose,
         })),
-        next: snapshot.authMode === "off"
-          ? "Auth is off — every tool is callable. Turn on write or all mode from /admin to see the gate."
+        next: snap.authMode === "off"
+          ? "Auth is off — every enabled tool is callable. Turn on write or all mode from /admin to see the gate."
           : "Call the tool you need. If it is denied, the error names the scope to ask for.",
       });
     },

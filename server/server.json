@@ -1,0 +1,43 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.markusvankempen/mcp-ticket-demo",
+  "description": "MCP server demo — tickets, schema discovery, auth, and PII gating. stdio + HTTP.",
+  "repository": {
+    "url": "https://github.com/markusvankempen/mcp-ticket-demo",
+    "source": "github"
+  },
+  "version": "1.0.4",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "mcp-ticket-demo",
+      "version": "1.0.4",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "MCP_MODE",
+          "description": "Transport mode. Use 'stdio' for IDE child process, 'http' for HTTP server.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "MCP_API_KEY",
+          "description": "API key for authenticated tool calls. Issue one on /admin → API Keys. Required when AUTH_MODE=write or AUTH_MODE=all.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "AUTH_MODE",
+          "description": "Authentication mode: off (default), write (write+pii tools gated), all (every tool gated).",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

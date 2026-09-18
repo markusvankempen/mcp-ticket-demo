@@ -77,13 +77,13 @@ export function createStore() {
 
   function log(event) {
     audit.unshift({ at: now(), ...event });
-    if (audit.length > 80) audit.pop();
+    if (audit.length > 200) audit.pop();
   }
 
   return {
     SERVICE_ACCOUNT,
     schemas: SCHEMAS,
-    audit: () => audit.slice(0, 40),
+    audit: () => audit.slice(0, 100),
     log,
 
     listTickets({ status = "open", requester_email, query, limit = 10 } = {}) {

@@ -4,7 +4,7 @@ const { loadHtml, bindWebview, postDiagnostics } = require("./ui");
 function getPanel(context, onMessage) {
   const panel = vscode.window.createWebviewPanel(
     "summitMcp.panel",
-    "MCP Platform diagnostics",
+    "LF MCP Demo — Diagnostics",
     vscode.ViewColumn.One,
     { enableScripts: true, retainContextWhenHidden: true },
   );

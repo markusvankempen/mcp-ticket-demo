@@ -2,7 +2,8 @@ import express from "express";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createMcpServer, TOOL_COUNT } from "./create-server.js";
-import { adminLoginPage, adminPage, healthPage, testPage, toolsPage } from "./pages.js";
+import { adminLoginPage, adminPage, healthPage, testPage, toolsPage, logPage, helpPage } from "./pages.js";
+import { generateData, generateTraffic } from "./traffic.js";
 
 const COOKIE = "mcp_admin";
 
@@ -40,7 +41,7 @@ function publicInfo(store, security, req) {
   return {
     ok: true,
     service: "mcp-ticket-demo",
-    version: "1.0.0",
+    version: "1.4.0",
     transport: "http",
     tools: TOOL_COUNT,
     cwd: process.cwd(),
@@ -156,7 +157,19 @@ export async function startHttp({ store, security }) {
       res.status(result.ok ? 200 : 500).json(result);
       return;
     }
-    res.type("html").send(testPage(result));
+    const host = req.headers.host || `127.0.0.1:${Number(process.env.PORT || 8080)}`;
+    res.type("html").send(testPage(result, host));
+  });
+
+  app.get("/log", requireAdmin, (req, res) => {
+    res.type("html").send(logPage({
+      security: security.snapshot(),
+      store,
+    }));
+  });
+
+  app.get("/help", (_req, res) => {
+    res.type("html").send(helpPage());
   });
 
   app.get("/admin", requireAdmin, (req, res) => {
@@ -233,6 +246,58 @@ export async function startHttp({ store, security }) {
       return;
     }
     pendingKey = issued;
+    res.redirect("/admin");
+  });
+
+  app.post("/admin/audit-mode", requireAdmin, (req, res) => {
+    const enabled = body(req, "enabled") === "1" || req.body?.enabled === true;
+    security.setAuditMode(enabled);
+    if (wantsJson(req)) {
+      res.json({ ok: true, security: security.snapshot() });
+      return;
+    }
+    res.redirect("/admin#adm-security");
+  });
+
+  app.post("/admin/tool-gate", requireAdmin, (req, res) => {
+    const toolName = body(req, "tool");
+    const enabled = body(req, "enabled") !== "0";
+    security.setToolGate(toolName, enabled);
+    if (wantsJson(req)) {
+      res.json({ ok: true, security: security.snapshot() });
+      return;
+    }
+    res.redirect("/admin#adm-gates");
+  });
+
+  app.post("/admin/tool-auth", requireAdmin, (req, res) => {
+    const toolName = body(req, "tool");
+    const requireAuth = body(req, "requireAuth") === "1";
+    security.setToolAuth(toolName, requireAuth);
+    if (wantsJson(req)) {
+      res.json({ ok: true, security: security.snapshot() });
+      return;
+    }
+    res.redirect("/admin#adm-gates");
+  });
+
+  app.post("/admin/generate-data", requireAdmin, async (req, res) => {
+    const count = Math.min(40, Math.max(1, Number(body(req, "count")) || 10));
+    const result = generateData(store, { count });
+    if (wantsJson(req)) {
+      res.json(result);
+      return;
+    }
+    res.redirect("/admin");
+  });
+
+  app.post("/admin/generate-traffic", requireAdmin, async (req, res) => {
+    const rounds = Math.min(20, Math.max(1, Number(body(req, "rounds")) || 5));
+    const result = await generateTraffic(store, security, { rounds });
+    if (wantsJson(req)) {
+      res.json(result);
+      return;
+    }
     res.redirect("/admin");
   });
 

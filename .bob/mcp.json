@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "mcp-ticket-demo": {
+      "command": "node",
+      "args": [
+        "src/index.js"
+      ],
+      "cwd": "/Users/markusvankempen/projects/mcp-ticket-demo/server",
+      "env": {
+        "MCP_MODE": "stdio"
+      },
+      "alwaysAllow": [
+        "describe_server",
+        "search_tickets",
+        "create_ticket",
+        "add_comment",
+        "get_ticket",
+        "list_schemas",
+        "get_schema",
+        "run_query",
+        "lookup_customer"
+      ],
+      "disabled": false
+    }
+  }
+}

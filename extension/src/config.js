@@ -3,6 +3,10 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
+/** Set by extension.js after context is available. */
+let _context = null;
+function setContext(ctx) { _context = ctx; }
+
 const SERVER_ID = "mcp-ticket-demo";
 const PODMAN_ID = "mcp-ticket-demo-podman";
 const REMOTE_ID = "mcp-ticket-demo-remote";
@@ -24,11 +28,26 @@ function workspaceRoot() {
 }
 
 function serverDir() {
-  return path.join(workspaceRoot(), "mcp-ticket-demo", "server");
+  // 1. Workspace clone takes priority (dev / repo mode)
+  const ws = path.join(workspaceRoot(), "server");
+  if (fs.existsSync(path.join(ws, "src", "index.js"))) return ws;
+  // 2. Fall back to the npm-installed copy in global storage
+  if (_context) {
+    const { bundledServerDir } = require("./npm-server");
+    const bd = bundledServerDir(_context);
+    if (fs.existsSync(path.join(bd, "src", "index.js"))) return bd;
+  }
+  // 3. Return workspace path as default (will be flagged missing by discover())
+  return ws;
 }
 
 function serverEntry() {
   return path.join(serverDir(), "src", "index.js");
+}
+
+function serverNodeModules() {
+  const dir = serverDir();
+  return path.join(dir, "node_modules");
 }
 
 function settings() {
@@ -89,6 +108,10 @@ function readSettingsJson(file) {
 
 function bobProjectFile(root) {
   return path.join(root, ".bob", "mcp.json");
+}
+
+function windsurfProjectFile(root) {
+  return path.join(root, ".windsurf", "mcp.json");
 }
 
 function vscodeSettingsFile(root) {
@@ -192,10 +215,12 @@ function discover() {
   const vscodeFile = path.join(root, ".vscode", "mcp.json");
   const cursorFile = path.join(root, ".cursor", "mcp.json");
   const bobFile = bobProjectFile(root);
+  const windsurfFile = windsurfProjectFile(root);
   const settingsFile = vscodeSettingsFile(root);
   const vscodeJson = readJson(vscodeFile);
   const cursorJson = readJson(cursorFile);
   const bobJson = readJson(bobFile);
+  const windsurfJson = readJson(windsurfFile);
   const settingsJson = readSettingsJson(settingsFile);
   const entry = serverEntry();
   const globals = bobGlobalCandidates().map((item) => ({
@@ -207,6 +232,7 @@ function discover() {
     workspace: root,
     serverEntry: entry,
     serverEntryExists: fs.existsSync(entry),
+    serverDependenciesInstalled: fs.existsSync(serverNodeModules()),
     vscode: {
       file: vscodeFile,
       exists: fs.existsSync(vscodeFile),
@@ -231,6 +257,14 @@ function discover() {
       hasPodman: hasServer(bobJson, PODMAN_ID),
       hasRemote: hasServer(bobJson, REMOTE_ID),
     },
+    windsurf: {
+      file: windsurfFile,
+      exists: fs.existsSync(windsurfFile),
+      json: windsurfJson,
+      hasServer: hasServer(windsurfJson),
+      hasPodman: hasServer(windsurfJson, PODMAN_ID),
+      hasRemote: hasServer(windsurfJson, REMOTE_ID),
+    },
     cline: {
       file: settingsFile,
       exists: Boolean(settingsJson?.["cline.mcpServers"]),
@@ -252,6 +286,7 @@ function writeLocal() {
   const vscodeFile = path.join(root, ".vscode", "mcp.json");
   const cursorFile = path.join(root, ".cursor", "mcp.json");
   const bobFile = bobProjectFile(root);
+  const windsurfFile = windsurfProjectFile(root);
   const settingsFile = vscodeSettingsFile(root);
   const native = nativeStdioEntry();
   const bobNative = bobNativeEntry();
@@ -268,9 +303,16 @@ function writeLocal() {
     env: native.env,
   });
   upsertMcpServers(bobFile, SERVER_ID, bobNative);
+  // Windsurf uses the same mcpServers schema as Cursor/Bob
+  upsertMcpServers(windsurfFile, SERVER_ID, {
+    command: native.command,
+    args: native.args,
+    cwd: native.cwd,
+    env: native.env,
+  });
   upsertClineSettings(settingsFile, SERVER_ID, bobNative);
 
-  return { vscodeFile, cursorFile, bobFile, settingsFile, cwd: native.cwd };
+  return { vscodeFile, cursorFile, bobFile, windsurfFile, settingsFile, cwd: native.cwd };
 }
 
 function writeRemote(url) {
@@ -280,6 +322,7 @@ function writeRemote(url) {
   const vscodeFile = path.join(root, ".vscode", "mcp.json");
   const cursorFile = path.join(root, ".cursor", "mcp.json");
   const bobFile = bobProjectFile(root);
+  const windsurfFile = windsurfProjectFile(root);
   const settingsFile = vscodeSettingsFile(root);
 
   const vscodeJson = readJson(vscodeFile) || { servers: {} };
@@ -294,25 +337,28 @@ function writeRemote(url) {
 
   const bobEntry = bobRemoteEntry(url);
   upsertMcpServers(bobFile, REMOTE_ID, bobEntry);
+  // Windsurf supports streamable-http natively — same entry as Bob
+  upsertMcpServers(windsurfFile, REMOTE_ID, bobEntry);
   upsertClineSettings(settingsFile, REMOTE_ID, bobEntry);
 
-  return { vscodeFile, cursorFile, bobFile, settingsFile, sse, mcp };
+  return { vscodeFile, cursorFile, bobFile, windsurfFile, settingsFile, sse, mcp };
 }
 
-function writePodmanStdio() {
+function writePodmanStdio(runtime = "podman") {
   const root = workspaceRoot();
   const vscodeFile = path.join(root, ".vscode", "mcp.json");
   const cursorFile = path.join(root, ".cursor", "mcp.json");
   const bobFile = bobProjectFile(root);
+  const windsurfFile = windsurfProjectFile(root);
   const settingsFile = vscodeSettingsFile(root);
   const image = settings().podmanImage;
   const vscodeEntry = {
     type: "stdio",
-    command: "podman",
+    command: runtime,
     args: ["run", "-i", "--rm", "-e", "MCP_MODE=stdio", image],
   };
   const bobEntry = {
-    command: "podman",
+    command: runtime,
     args: ["run", "-i", "--rm", "-e", "MCP_MODE=stdio", image],
     alwaysAllow: ALWAYS_ALLOW,
     disabled: false,
@@ -324,8 +370,9 @@ function writePodmanStdio() {
   writeJson(vscodeFile, vscodeJson);
   upsertMcpServers(cursorFile, PODMAN_ID, { command: vscodeEntry.command, args: vscodeEntry.args });
   upsertMcpServers(bobFile, PODMAN_ID, bobEntry);
+  upsertMcpServers(windsurfFile, PODMAN_ID, { command: vscodeEntry.command, args: vscodeEntry.args });
   upsertClineSettings(settingsFile, PODMAN_ID, bobEntry);
-  return { vscodeFile, cursorFile, bobFile, settingsFile, image };
+  return { vscodeFile, cursorFile, bobFile, windsurfFile, settingsFile, image, runtime };
 }
 
 function writePodmanHttp() {
@@ -334,6 +381,7 @@ function writePodmanHttp() {
   const vscodeFile = path.join(root, ".vscode", "mcp.json");
   const cursorFile = path.join(root, ".cursor", "mcp.json");
   const bobFile = bobProjectFile(root);
+  const windsurfFile = windsurfProjectFile(root);
   const settingsFile = vscodeSettingsFile(root);
   const sse = `${base}/sse`;
   const mcp = `${base}/mcp`;
@@ -345,11 +393,14 @@ function writePodmanHttp() {
   upsertMcpServers(cursorFile, PODMAN_ID, { command: "uvx", args: ["mcp-proxy", sse] });
   const bobEntry = bobRemoteEntry(base);
   upsertMcpServers(bobFile, PODMAN_ID, bobEntry);
+  // Windsurf supports streamable-http — same entry as Bob
+  upsertMcpServers(windsurfFile, PODMAN_ID, bobEntry);
   upsertClineSettings(settingsFile, PODMAN_ID, bobEntry);
-  return { vscodeFile, cursorFile, bobFile, settingsFile, sse, mcp };
+  return { vscodeFile, cursorFile, bobFile, windsurfFile, settingsFile, sse, mcp };
 }
 
 module.exports = {
+  setContext,
   SERVER_ID,
   PODMAN_ID,
   REMOTE_ID,
@@ -357,6 +408,7 @@ module.exports = {
   workspaceRoot,
   serverDir,
   serverEntry,
+  serverNodeModules,
   settings,
   httpBase,
   podmanHttpUrl,
@@ -365,4 +417,5 @@ module.exports = {
   writeRemote,
   writePodmanStdio,
   writePodmanHttp,
+  windsurfProjectFile,
 };

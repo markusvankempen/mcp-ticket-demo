@@ -1,5 +1,5 @@
 /**
- * Auth, scopes, API keys, and rate limiting for the demo server.
+ * Auth, scopes, API keys, rate limiting, per-tool gating, and call telemetry.
  *
  * None of this is in the MCP spec. The spec says nothing about who is allowed to
  * call a tool, so every server invents it. This file is one opinionated answer:
@@ -8,12 +8,22 @@
  *             write  read tools are open; write and PII tools need a credential
  *             all    every tool call needs a credential
  *
+ * Per-tool gating (independent of authMode):
+ *   Each tool can be individually enabled or disabled via setToolGate(name, enabled).
+ *   A disabled tool returns a clear "tool is not available" error.
+ *   Terminology: "gated" = requires auth,  "disabled" = switched off entirely.
+ *
  * Credentials are an API key (Authorization: Bearer / x-api-key) or a username and
  * password (HTTP Basic). Each one resolves to a principal with scopes, and every
  * call is rate limited per principal.
  *
  * stdio has no headers, so the same credentials are read from the environment
  * (MCP_API_KEY, or MCP_USERNAME + MCP_PASSWORD).
+ *
+ * Telemetry (in-memory, never persisted):
+ *   toolCounters  — success / error / denied call counts per tool name
+ *   errorLog      — ring buffer of the last 50 calls that failed param validation
+ *   auditLog      — full trace when auditMode is enabled (toggle via admin)
  */
 
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
@@ -30,11 +40,27 @@ export const OPEN_TOOLS = new Set(["describe_server"]);
 export const AUTH_MODES = ["off", "write", "all"];
 export const SCOPES = ["read", "write", "pii", "admin"];
 
+/** All known tool names — mirrors TOOL_CATALOG in create-server.js. */
+export const ALL_TOOLS = [
+  "describe_server",
+  "search_tickets",
+  "create_ticket",
+  "add_comment",
+  "get_ticket",
+  "list_schemas",
+  "get_schema",
+  "run_query",
+  "lookup_customer",
+];
+
 const KEY_PREFIX = "mcpk";
 /** admin implies everything; write implies read. */
 const IMPLIED = { admin: ["read", "write", "pii", "admin"], write: ["read", "write"], pii: ["read", "pii"], read: ["read"] };
 
 const now = () => new Date().toISOString();
+
+const MAX_ERROR_LOG = 50;
+const MAX_AUDIT_LOG = 200;
 
 function sha256(value) {
   return createHash("sha256").update(String(value)).digest("hex");
@@ -84,7 +110,7 @@ function initialAuthMode() {
 }
 
 export function createSecurity({ log } = {}) {
-  const audit = typeof log === "function" ? log : () => {};
+  const auditFn = typeof log === "function" ? log : () => {};
 
   const state = {
     authMode: initialAuthMode(),
@@ -99,7 +125,36 @@ export function createSecurity({ log } = {}) {
     },
     deniedCount: 0,
     lastDeniedAt: "",
+    /** Full-trace audit mode — disabled by default, togglable from /admin. */
+    auditMode: false,
   };
+
+  /**
+   * Per-tool gate state.
+   * true  = enabled  (normal, default)
+   * false = disabled (returns a clear "unavailable" error regardless of auth)
+   */
+  const toolGates = new Map(ALL_TOOLS.map((name) => [name, true]));
+
+  /**
+   * Per-tool auth overrides.
+   * true  = this tool requires a credential regardless of the global authMode
+   * false = follows global authMode (default for all tools)
+   */
+  const toolAuthOverrides = new Map(ALL_TOOLS.map((name) => [name, false]));
+
+  /**
+   * Per-tool call counters: { success, error, denied }
+   * "error" counts calls that reached the handler but produced a validation / logic error.
+   * "denied" counts auth / rate-limit denials (never reached the handler).
+   */
+  const toolCounters = new Map(ALL_TOOLS.map((name) => [name, { success: 0, error: 0, denied: 0 }]));
+
+  /** Ring buffer of bad-parameter / validation error events (last MAX_ERROR_LOG entries). */
+  const errorLog = [];
+
+  /** Full call trace when auditMode is on (last MAX_AUDIT_LOG entries). */
+  const callTrace = [];
 
   /** id -> { id, label, prefix, hash, scopes, createdAt, expiresAt, revokedAt, lastUsedAt, calls } */
   const keys = new Map();
@@ -112,6 +167,25 @@ export function createSecurity({ log } = {}) {
     password: state.adminPassword,
     scopes: ["admin"],
   });
+
+  // ── helpers ────────────────────────────────────────────────────────────────
+
+  function counterFor(toolName) {
+    if (!toolCounters.has(toolName)) toolCounters.set(toolName, { success: 0, error: 0, denied: 0 });
+    return toolCounters.get(toolName);
+  }
+
+  function pushErrorLog(entry) {
+    errorLog.unshift({ at: now(), ...entry });
+    if (errorLog.length > MAX_ERROR_LOG) errorLog.pop();
+  }
+
+  function pushCallTrace(entry) {
+    callTrace.unshift({ at: now(), ...entry });
+    if (callTrace.length > MAX_AUDIT_LOG) callTrace.pop();
+  }
+
+  // ── API key management ─────────────────────────────────────────────────────
 
   function issueKey({ label, scopes, expiresInDays, createdBy } = {}) {
     const id = randomBytes(4).toString("hex");
@@ -133,7 +207,7 @@ export function createSecurity({ log } = {}) {
       calls: 0,
     };
     keys.set(id, record);
-    audit({ tool: "admin.api_key", outcome: `issued ${record.prefix} (${record.scopes.join("+")})` });
+    auditFn({ tool: "admin.api_key", outcome: `issued ${record.prefix} (${record.scopes.join("+")})` });
     // The plaintext is returned once and never stored.
     return { key, record: publicKey(record) };
   }
@@ -189,6 +263,8 @@ export function createSecurity({ log } = {}) {
     const hash = sha256(text);
     return candidates.find((record) => safeEqual(record.hash, hash)) || null;
   }
+
+  // ── credential resolution ──────────────────────────────────────────────────
 
   /** Pull whatever credential the caller presented out of headers (or stdio env). */
   function readCredentials(headers = {}, extra = {}) {
@@ -277,19 +353,24 @@ export function createSecurity({ log } = {}) {
     return { type: "anonymous", id: "anonymous", label: "anonymous", scopes: [], grantedScopes: [] };
   }
 
+  // ── scope / auth helpers ───────────────────────────────────────────────────
+
   function requiredScope(toolName) {
     if (WRITE_TOOLS.has(toolName)) return "write";
     if (PII_TOOLS.has(toolName)) return "pii";
     return "read";
   }
 
-  /** Does this tool need a credential under the current mode? */
+  /** Does this tool need a credential under the current mode or a per-tool override? */
   function authRequiredFor(toolName) {
     if (OPEN_TOOLS.has(toolName)) return false;
+    if (toolAuthOverrides.get(toolName) === true) return true;
     if (state.authMode === "all") return true;
     if (state.authMode === "write") return WRITE_TOOLS.has(toolName) || PII_TOOLS.has(toolName);
     return false;
   }
+
+  // ── rate limiting ──────────────────────────────────────────────────────────
 
   function rateSnapshot(principalId) {
     const { enabled, limit, windowMs } = state.rateLimit;
@@ -327,12 +408,20 @@ export function createSecurity({ log } = {}) {
     return { ok: true, remaining: limit - bucket.count };
   }
 
+  // ── deny helper ────────────────────────────────────────────────────────────
+
   function deny(principal, toolName, error, extra = {}) {
     state.deniedCount += 1;
     state.lastDeniedAt = now();
-    audit({ tool: toolName, principal: principal?.label || "anonymous", outcome: `denied — ${extra.reason || "unauthorized"}` });
+    counterFor(toolName).denied += 1;
+    auditFn({ tool: toolName, principal: principal?.label || "anonymous", outcome: `denied — ${extra.reason || "unauthorized"}` });
+    if (state.auditMode) {
+      pushCallTrace({ type: "denied", tool: toolName, principal: principal?.label || "anonymous", reason: extra.reason || "unauthorized", error });
+    }
     return { ok: false, principal, error, ...extra };
   }
+
+  // ── public API ─────────────────────────────────────────────────────────────
 
   return {
     /** Everything the /health page, the admin page, and describe_server report. */
@@ -353,6 +442,15 @@ export function createSecurity({ log } = {}) {
         deniedCount: state.deniedCount,
         lastDeniedAt: state.lastDeniedAt,
         scopes: SCOPES,
+        /** Per-tool gate state: name → enabled (true/false). */
+        toolGates: Object.fromEntries(toolGates),
+        /** Per-tool auth overrides: name → requireAuth (true/false). */
+        toolAuthOverrides: Object.fromEntries(toolAuthOverrides),
+        /** Per-tool counters: name → { success, error, denied }. */
+        toolCounters: Object.fromEntries(toolCounters),
+        auditMode: state.auditMode,
+        errorLog: errorLog.slice(0, 20),
+        callTrace: callTrace.slice(0, 50),
       };
     },
 
@@ -360,7 +458,7 @@ export function createSecurity({ log } = {}) {
       const next = String(mode || "").toLowerCase();
       if (!AUTH_MODES.includes(next)) return this.snapshot();
       state.authMode = next;
-      audit({ tool: "admin.security", outcome: `auth mode set to ${next}` });
+      auditFn({ tool: "admin.security", outcome: `auth mode set to ${next}` });
       return this.snapshot();
     },
 
@@ -374,10 +472,42 @@ export function createSecurity({ log } = {}) {
       if (Number(limit) > 0) state.rateLimit.limit = Math.floor(Number(limit));
       if (Number(windowMs) >= 1000) state.rateLimit.windowMs = Math.floor(Number(windowMs));
       buckets.clear();
-      audit({
+      auditFn({
         tool: "admin.security",
         outcome: `rate limit ${state.rateLimit.enabled ? `${state.rateLimit.limit}/${Math.round(state.rateLimit.windowMs / 1000)}s` : "disabled"}`,
       });
+      return this.snapshot();
+    },
+
+    /**
+     * Enable or disable an individual tool.
+     * A disabled tool is immediately unavailable to any caller regardless of auth mode.
+     */
+    setToolGate(toolName, enabled) {
+      if (!toolGates.has(toolName)) return this.snapshot();
+      const on = Boolean(enabled);
+      toolGates.set(toolName, on);
+      auditFn({ tool: "admin.tool_gate", outcome: `${toolName} ${on ? "enabled" : "disabled"}` });
+      return this.snapshot();
+    },
+
+    /**
+     * Override auth requirement for a specific tool.
+     * When true the tool requires a credential regardless of the global authMode.
+     */
+    setToolAuth(toolName, requireAuth) {
+      if (!toolAuthOverrides.has(toolName)) return this.snapshot();
+      const on = Boolean(requireAuth);
+      toolAuthOverrides.set(toolName, on);
+      auditFn({ tool: "admin.tool_auth", outcome: `${toolName} auth-lock ${on ? "on" : "off"}` });
+      return this.snapshot();
+    },
+
+    /** Toggle full call tracing. When on, every allowed and denied call is recorded. */
+    setAuditMode(enabled) {
+      state.auditMode = Boolean(enabled);
+      if (state.auditMode) callTrace.length = 0; // start fresh
+      auditFn({ tool: "admin.audit", outcome: `audit mode ${state.auditMode ? "on" : "off"}` });
       return this.snapshot();
     },
 
@@ -387,7 +517,7 @@ export function createSecurity({ log } = {}) {
       const record = keys.get(String(id));
       if (!record) return false;
       record.revokedAt = now();
-      audit({ tool: "admin.api_key", outcome: `revoked ${record.prefix}` });
+      auditFn({ tool: "admin.api_key", outcome: `revoked ${record.prefix}` });
       return true;
     },
 
@@ -401,10 +531,60 @@ export function createSecurity({ log } = {}) {
     rateSnapshot,
 
     /**
+     * Record a successful tool call result. Called by create-server.js after the
+     * handler returns so the counter and trace include the outcome.
+     */
+    recordSuccess(toolName, principal, params) {
+      counterFor(toolName).success += 1;
+      if (state.auditMode) {
+        pushCallTrace({
+          type: "success",
+          tool: toolName,
+          principal: principal?.label || "anonymous",
+          params: params || {},
+        });
+      }
+    },
+
+    /**
+     * Record a tool call that reached the handler but produced a logic/validation error
+     * (e.g. unknown ticket id, bad param value). Called by create-server.js.
+     */
+    recordError(toolName, principal, params, error) {
+      counterFor(toolName).error += 1;
+      pushErrorLog({
+        tool: toolName,
+        principal: principal?.label || "anonymous",
+        params: params || {},
+        error: String(error),
+      });
+      if (state.auditMode) {
+        pushCallTrace({
+          type: "error",
+          tool: toolName,
+          principal: principal?.label || "anonymous",
+          params: params || {},
+          error: String(error),
+        });
+      }
+    },
+
+    /**
      * The single gate every tool call goes through.
      * Returns { ok, principal, error } — the error text is written for a model to act on.
      */
     authorizeCall(toolName, headers = {}, extra = {}) {
+      // Tool disabled check comes first — no auth information is needed.
+      if (toolGates.get(toolName) === false) {
+        const principal = { type: "anonymous", id: "anonymous", label: "anonymous", scopes: [], grantedScopes: [] };
+        return deny(
+          principal,
+          toolName,
+          `${toolName} is currently unavailable. An administrator has disabled this tool. Check /tools or /admin → Tools to see which tools are available.`,
+          { status: 503, reason: "tool disabled" },
+        );
+      }
+
       const principal = identify(headers, extra);
 
       // A bad credential is fatal everywhere except discovery, which has to be able
@@ -424,7 +604,7 @@ export function createSecurity({ log } = {}) {
           return deny(
             principal,
             toolName,
-            `${toolName} needs a credential because auth mode is "${state.authMode}". Send Authorization: Bearer <api key> (create one on /admin → API keys) or HTTP Basic with a username and password. Over stdio set MCP_API_KEY in the server env.`,
+            `${toolName} requires authentication because auth mode is "${state.authMode}". Send Authorization: Bearer <api key> (create one on /admin → API keys) or HTTP Basic with a username and password. Over stdio set MCP_API_KEY in the server env.`,
             { status: 401, reason: "anonymous" },
           );
         }
@@ -432,7 +612,7 @@ export function createSecurity({ log } = {}) {
           return deny(
             principal,
             toolName,
-            `${principal.label} has scopes [${principal.grantedScopes.join(", ") || "none"}] but ${toolName} needs "${needed}". Issue a key with that scope on /admin → API keys.`,
+            `${principal.label} has scopes [${principal.grantedScopes.join(", ") || "none"}] but ${toolName} requires the "${needed}" scope. Issue a key with that scope on /admin → API keys.`,
             { status: 403, reason: `missing scope ${needed}` },
           );
         }
@@ -485,10 +665,10 @@ export function createSecurity({ log } = {}) {
       if (okAdmin || okUser) {
         const id = `ses_${randomBytes(12).toString("hex")}`;
         sessions.set(id, Date.now());
-        audit({ tool: "admin.login", outcome: `${username} signed in` });
+        auditFn({ tool: "admin.login", outcome: `${username} signed in` });
         return id;
       }
-      audit({ tool: "admin.login", outcome: `failed sign-in for ${username || "(blank)"}` });
+      auditFn({ tool: "admin.login", outcome: `failed sign-in for ${username || "(blank)"}` });
       return null;
     },
 

@@ -2,6 +2,14 @@
 
 # MCP Demo
 
+[![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![MCP](https://img.shields.io/badge/MCP-Protocol-5A29E4?style=for-the-badge)](https://modelcontextprotocol.io/)
+[![IBM Cloud](https://img.shields.io/badge/IBM-Cloud_Code_Engine-052FAD?style=for-the-badge&logo=ibm&logoColor=white)](https://www.ibm.com/products/code-engine)
+[![npm](https://img.shields.io/npm/v/mcp-ticket-demo?style=for-the-badge&logo=npm&logoColor=white&label=npm)](https://www.npmjs.com/package/mcp-ticket-demo)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-mcp--ticket--demo-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/markusvankempen/mcp-ticket-demo)
+[![Linux Foundation](https://img.shields.io/badge/Linux_Foundation-MCP_Dev_Summit_Toronto-003366?style=for-the-badge)](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401)
+
 Companion repo for [**MCP as a Platform: What I Learned Building a Portfolio of MCP Servers**](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401) · [MCP Dev Summit Toronto](https://events.linuxfoundation.org/mcp-dev-summit-toronto/) · Monday 5 October 2026, 12:00–12:25 EDT · Terrace East + West
 
 **Clone:** [github.com/markusvankempen/mcp-ticket-demo](https://github.com/markusvankempen/mcp-ticket-demo)
@@ -49,6 +57,18 @@ mcp-ticket-demo/
 ```
 
 ---
+
+## MCP server on npm
+
+The server is published as [`mcp-ticket-demo`](https://www.npmjs.com/package/mcp-ticket-demo) — no clone required.
+
+```bash
+# stdio (what the IDE spawns)
+npx mcp-ticket-demo
+
+# HTTP — /health /test /admin /mcp /sse
+MCP_MODE=http npx mcp-ticket-demo
+```
 
 ## Ten-minute local path
 
@@ -172,3 +192,7 @@ Details and the "0 tools discovered" repro: [docs/REMOTE.md](docs/REMOTE.md).
 - `/health` being green does not mean the ticket went to the right person.
 
 *No bug too small, no syntax too weird.*
+
+---
+
+**Author:** Markus van Kempen · [mvankempen@ca.ibm.com](mailto:mvankempen@ca.ibm.com) · [markus.van.kempen@gmail.com](mailto:markus.van.kempen@gmail.com) · [markusvankempen.github.io](https://markusvankempen.github.io/) · [Linux Foundation Speaking Session](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401)

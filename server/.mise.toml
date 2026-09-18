@@ -1,0 +1,61 @@
+[tools]
+node = "22"
+
+[settings]
+experimental = true
+
+[tasks.install]
+description = "Install server dependencies"
+run = "npm install"
+
+[tasks.test]
+description = "Run smoke test (stdio store validation)"
+run = "node src/smoke.js"
+depends = ["install"]
+
+[tasks.test-smoke]
+description = "Run HTTP smoke test on port 8799"
+run = "MCP_MODE=http PORT=8799 node src/smoke.js"
+depends = ["install"]
+
+[tasks.test-tools]
+description = "Run full 9-tool test suite (in-process + HTTP)"
+run = "node src/test-tools.js"
+depends = ["install"]
+
+[tasks.test-tools-phase1]
+description = "Run in-process tool tests only (no port needed)"
+run = "node src/test-tools.js --phase1"
+depends = ["install"]
+
+[tasks.test-tools-phase2]
+description = "Run HTTP wire tests only (port 8799)"
+run = "node src/test-tools.js --phase2"
+depends = ["install"]
+
+[tasks.test-all]
+description = "Run smoke test + full tool suite"
+run = "node src/smoke.js && node src/test-tools.js"
+depends = ["install"]
+
+[tasks.start]
+description = "Start server in stdio mode"
+run = "MCP_MODE=stdio node src/index.js"
+depends = ["install"]
+
+[tasks.start-http]
+description = "Start server in HTTP mode on port 8787"
+run = "MCP_MODE=http PORT=8787 node src/index.js"
+depends = ["install"]
+
+[tasks.publish-npm]
+description = "Publish to npm (bump version first)"
+run = "npm publish --access public"
+
+[tasks.publish-mcp]
+description = "Publish to MCP Registry (requires: mcp-publisher login github)"
+run = "mcp-publisher publish"
+
+[tasks.release]
+description = "Publish npm then MCP registry"
+depends = ["publish-npm", "publish-mcp"]

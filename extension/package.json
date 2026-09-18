@@ -1,9 +1,47 @@
 {
-  "name": "summit-mcp-platform",
-  "displayName": "MCP Demo",
-  "description": "Control plane for the MCP Dev Summit Toronto demo server — native stdio, local Podman, remote Code Engine, diagnostics panel, and chat prompts.",
-  "version": "1.2.0",
+  "name": "lf-mcp-summit-demo",
+  "displayName": "LF MCP Demo",
+  "description": "LF MCP Dev Summit Toronto — control plane, bundled mcp-ticket-demo server, diagnostics, chat prompts, and one-click IDE config for VS Code, Bob, Cursor, and Windsurf.",
+  "version": "1.4.0",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "mcp-client",
+    "ai-tools",
+    "llm",
+    "agent",
+    "agentic",
+    "copilot",
+    "bob",
+    "cursor",
+    "windsurf",
+    "cline",
+    "stdio",
+    "streamable-http",
+    "sse",
+    "podman",
+    "code-engine",
+    "ibm",
+    "ibm-cloud",
+    "linux-foundation",
+    "mcp-dev-summit",
+    "toronto",
+    "demo",
+    "tutorial",
+    "diagnostics",
+    "tickets",
+    "helpdesk"
+  ],
   "publisher": "markusvankempen",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/markusvankempen/mcp-ticket-demo.git"
+  },
+  "homepage": "https://github.com/markusvankempen/mcp-ticket-demo#readme",
+  "bugs": {
+    "url": "https://github.com/markusvankempen/mcp-ticket-demo/issues"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -13,14 +51,14 @@
   ],
   "main": "./src/extension.js",
   "scripts": {
-    "package": "vsce package --no-dependencies --allow-missing-repository --allow-star-activation"
+    "package": "vsce package --no-dependencies --allow-star-activation"
   },
   "contributes": {
     "viewsContainers": {
       "activitybar": [
         {
           "id": "summitMcp",
-          "title": "MCP Demo",
+          "title": "LF MCP Demo",
           "icon": "media/icon.svg"
         }
       ]
@@ -42,85 +80,105 @@
     "commands": [
       {
         "command": "summitMcp.discover",
-        "title": "MCP Demo: Discover mcp.json"
+        "title": "LF MCP Demo: Discover mcp.json"
       },
       {
         "command": "summitMcp.connectLocal",
-        "title": "MCP Demo: Connect native stdio"
+        "title": "LF MCP Demo: Connect native stdio"
       },
       {
         "command": "summitMcp.connectRemote",
-        "title": "MCP Demo: Connect remote Code Engine"
+        "title": "LF MCP Demo: Connect remote Code Engine"
       },
       {
         "command": "summitMcp.connectPodmanStdio",
-        "title": "MCP Demo: Connect Podman stdio"
+        "title": "LF MCP Demo: Connect container stdio (Podman / Docker)"
       },
       {
         "command": "summitMcp.connectPodmanHttp",
-        "title": "MCP Demo: Connect Podman HTTP"
+        "title": "LF MCP Demo: Connect container HTTP (Podman / Docker)"
       },
       {
         "command": "summitMcp.podmanStart",
-        "title": "MCP Demo: Build & start local Podman"
+        "title": "LF MCP Demo: Build & start local container (Podman / Docker)"
       },
       {
         "command": "summitMcp.podmanStop",
-        "title": "MCP Demo: Stop local Podman"
+        "title": "LF MCP Demo: Stop local container"
       },
       {
         "command": "summitMcp.diagnose",
-        "title": "MCP Demo: Diagnose"
+        "title": "LF MCP Demo: Diagnose"
       },
       {
         "command": "summitMcp.fillChat",
-        "title": "MCP Demo: Send prompt to chat"
+        "title": "LF MCP Demo: Send prompt to chat"
       },
       {
         "command": "summitMcp.chatSearch",
-        "title": "MCP Demo: Chat — search open tickets"
+        "title": "LF MCP Demo: Chat — search open tickets"
       },
       {
         "command": "summitMcp.saveSettings",
-        "title": "MCP Demo: Save settings"
+        "title": "LF MCP Demo: Save settings"
       },
       {
         "command": "summitMcp.openHealth",
-        "title": "MCP Demo: Open /health"
+        "title": "LF MCP Demo: Open /health"
       },
       {
         "command": "summitMcp.openTest",
-        "title": "MCP Demo: Open /test"
+        "title": "LF MCP Demo: Open /test"
       },
       {
         "command": "summitMcp.openAdmin",
-        "title": "MCP Demo: Open /admin"
+        "title": "LF MCP Demo: Open /admin"
       },
       {
         "command": "summitMcp.openTools",
-        "title": "MCP Demo: Open /tools"
+        "title": "LF MCP Demo: Open /tools"
+      },
+      {
+        "command": "summitMcp.openHelp",
+        "title": "LF MCP Demo: Open /help"
       },
       {
         "command": "summitMcp.openPanel",
-        "title": "MCP Demo: Open diagnostics panel",
+        "title": "LF MCP Demo: Open diagnostics panel",
         "icon": "$(graph)"
       },
       {
         "command": "summitMcp.startLocalHttp",
-        "title": "MCP Demo: Start native HTTP server"
+        "title": "LF MCP Demo: Start native HTTP server"
       },
       {
         "command": "summitMcp.showMenu",
-        "title": "MCP Demo: Show quick menu"
+        "title": "LF MCP Demo: Show quick menu"
       },
       {
         "command": "summitMcp.openConfig",
-        "title": "MCP Demo: Open mcp.json"
+        "title": "LF MCP Demo: Open mcp.json"
+      },
+      {
+        "command": "summitMcp.installServer",
+        "title": "LF MCP Demo: Install bundled server"
+      },
+      {
+        "command": "summitMcp.updateServer",
+        "title": "LF MCP Demo: Update server from npm"
       },
       {
         "command": "summitMcp.refreshTree",
         "title": "Refresh",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "summitMcp.registerIde",
+        "title": "LF MCP Demo: Register server with all IDEs"
+      },
+      {
+        "command": "summitMcp.runMcpCrud",
+        "title": "LF MCP Demo: Run MCP CRUD test"
       }
     ],
     "menus": {
