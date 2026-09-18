@@ -1,5 +1,18 @@
+const path = require("path");
 const vscode = require("vscode");
 const { discover, httpBase, settings } = require("./config");
+
+const ICONS = path.join(__dirname, "..", "media", "icons");
+const THEME_ICONS = new Set(["check", "error", "warning", "circle-slash", "circle-outline"]);
+
+function iconPath(name) {
+  if (!name) return new vscode.ThemeIcon("circle-outline");
+  if (THEME_ICONS.has(name)) return new vscode.ThemeIcon(name);
+  return {
+    light: path.join(ICONS, "light", `${name}.svg`),
+    dark: path.join(ICONS, "dark", `${name}.svg`),
+  };
+}
 
 class ResourceNode {
   constructor(label, opts = {}) {
@@ -7,7 +20,7 @@ class ResourceNode {
     this.collapsible = opts.children ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.None;
     this.description = opts.description;
     this.tooltip = opts.tooltip;
-    this.iconPath = new vscode.ThemeIcon(opts.icon || "circle-outline");
+    this.iconPath = iconPath(opts.icon);
     this.contextValue = opts.contextValue;
     this.command = opts.command;
     this.children = opts.children || [];
@@ -50,7 +63,7 @@ class ResourceTreeProvider {
 
     return [
       new ResourceNode("Server", {
-        icon: "server-process",
+        icon: "server",
         children: [
           new ResourceNode("Server entry", {
             icon: info.serverEntryExists ? "check" : "error",
@@ -64,74 +77,74 @@ class ResourceTreeProvider {
         ],
       }),
       new ResourceNode("Transports", {
-        icon: "plug",
+        icon: "transports",
         children: [
           new ResourceNode("Native stdio", {
-            icon: any(info.vscode.hasServer, info.cursor.hasServer, info.bob.hasServer, info.windsurf.hasServer) ? "check" : "circle-slash",
+            icon: any(info.vscode.hasServer, info.cursor.hasServer, info.bob.hasServer, info.windsurf.hasServer) ? "stdio" : "circle-slash",
             description: connected(any(info.vscode.hasServer, info.cursor.hasServer, info.bob.hasServer, info.windsurf.hasServer)),
             command: cmd("summitMcp.connectLocal", "Connect native stdio"),
           }),
           new ResourceNode("Local Podman", {
-            icon: any(info.vscode.hasPodman, info.cursor.hasPodman, info.bob.hasPodman, info.windsurf.hasPodman) ? "package" : "circle-slash",
+            icon: any(info.vscode.hasPodman, info.cursor.hasPodman, info.bob.hasPodman, info.windsurf.hasPodman) ? "container" : "circle-slash",
             description: connected(any(info.vscode.hasPodman, info.cursor.hasPodman, info.bob.hasPodman, info.windsurf.hasPodman)),
             command: cmd("summitMcp.podmanStart", "Start Podman"),
           }),
           new ResourceNode("Code Engine remote", {
-            icon: any(info.vscode.hasRemote, info.cursor.hasRemote, info.bob.hasRemote, info.windsurf.hasRemote) ? "cloud" : "circle-slash",
+            icon: any(info.vscode.hasRemote, info.cursor.hasRemote, info.bob.hasRemote, info.windsurf.hasRemote) ? "remote" : "circle-slash",
             description: s.remoteUrl ? s.remoteUrl.replace(/^https?:\/\//, "") : "not set",
             command: cmd("summitMcp.connectRemote", "Connect remote"),
           }),
         ],
       }),
       new ResourceNode("Pages", {
-        icon: "globe",
+        icon: "pages",
         description: probe.replace(/^https?:\/\//, ""),
         children: [
-          new ResourceNode("/health", { icon: "pulse", description: "Alive?", command: cmd("summitMcp.openHealth", "Open /health") }),
-          new ResourceNode("/test", { icon: "beaker", description: "Works?", command: cmd("summitMcp.openTest", "Open /test") }),
-          new ResourceNode("/admin", { icon: "lock", description: "Lock writes", command: cmd("summitMcp.openAdmin", "Open /admin") }),
+          new ResourceNode("/health", { icon: "health", description: "Alive?", command: cmd("summitMcp.openHealth", "Open /health") }),
+          new ResourceNode("/test", { icon: "test", description: "Works?", command: cmd("summitMcp.openTest", "Open /test") }),
+          new ResourceNode("/admin", { icon: "admin", description: "Lock writes", command: cmd("summitMcp.openAdmin", "Open /admin") }),
           new ResourceNode("/tools", { icon: "tools", description: "Tool list", command: cmd("summitMcp.openTools", "Open /tools") }),
-          new ResourceNode("/help", { icon: "book", description: "Docs", command: cmd("summitMcp.openHelp", "Open /help") }),
+          new ResourceNode("/help", { icon: "help", description: "Docs", command: cmd("summitMcp.openHelp", "Open /help") }),
         ],
       }),
       new ResourceNode("Config", {
-        icon: "json",
+        icon: "config",
         children: [
           new ResourceNode(".vscode/mcp.json", {
-            icon: "file-code",
+            icon: "file",
             description: info.vscode.exists ? "present" : "missing",
             command: { command: "summitMcp.openConfig", title: "Open", arguments: ["vscode"] },
           }),
           new ResourceNode(".cursor/mcp.json", {
-            icon: "file-code",
+            icon: "file",
             description: info.cursor.exists ? "present" : "missing",
             command: { command: "summitMcp.openConfig", title: "Open", arguments: ["cursor"] },
           }),
           new ResourceNode(".bob/mcp.json", {
-            icon: "file-code",
+            icon: "file",
             description: info.bob.exists ? "present" : "missing",
             command: { command: "summitMcp.openConfig", title: "Open", arguments: ["bob"] },
           }),
           new ResourceNode(".windsurf/mcp.json", {
-            icon: "file-code",
+            icon: "file",
             description: info.windsurf.exists ? "present" : "missing",
             command: { command: "summitMcp.openConfig", title: "Open", arguments: ["windsurf"] },
           }),
         ],
       }),
       new ResourceNode("Control plane", {
-        icon: "layout-sidebar-left",
+        icon: "panel",
         children: [
-          new ResourceNode("Setup & Diagnostics", { icon: "graph", command: cmd("summitMcp.openPanel", "Open panel") }),
-          new ResourceNode("Run diagnostics", { icon: "checklist", command: cmd("summitMcp.diagnose", "Diagnose") }),
-          new ResourceNode("Send search to chat", { icon: "comment-discussion", command: cmd("summitMcp.chatSearch", "Chat") }),
+          new ResourceNode("Setup & Diagnostics", { icon: "panel", command: cmd("summitMcp.openPanel", "Open panel") }),
+          new ResourceNode("Run diagnostics", { icon: "diagnose", command: cmd("summitMcp.diagnose", "Diagnose") }),
+          new ResourceNode("Send search to chat", { icon: "chat", command: cmd("summitMcp.chatSearch", "Chat") }),
         ],
       }),
       new ResourceNode("About & Links", {
-        icon: "info",
+        icon: "about",
         children: [
-          new ResourceNode("Author Website", { icon: "globe", description: "markusvankempen.github.io", command: cmd("summitMcp.openAuthorSite", "Open Website") }),
-          new ResourceNode("Linux Foundation Talk", { icon: "link-external", description: "MCP Dev Summit Toronto", command: cmd("summitMcp.openTalkPage", "Open Session") }),
+          new ResourceNode("Author Website", { icon: "pages", description: "markusvankempen.github.io", command: cmd("summitMcp.openAuthorSite", "Open Website") }),
+          new ResourceNode("Linux Foundation Talk", { icon: "ticket", description: "MCP Dev Summit Toronto", command: cmd("summitMcp.openTalkPage", "Open Session") }),
         ],
       }),
     ];

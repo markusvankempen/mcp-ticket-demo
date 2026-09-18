@@ -4,6 +4,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { createMcpServer, TOOL_COUNT } from "./create-server.js";
 import { adminLoginPage, adminPage, healthPage, testPage, toolsPage, logPage, helpPage } from "./pages.js";
 import { generateData, generateTraffic } from "./traffic.js";
+import { VERSION } from "./version.js";
 
 const COOKIE = "mcp_admin";
 
@@ -41,7 +42,7 @@ function publicInfo(store, security, req) {
   return {
     ok: true,
     service: "mcp-ticket-demo",
-    version: "1.4.0",
+    version: VERSION,
     transport: "http",
     tools: TOOL_COUNT,
     cwd: process.cwd(),
@@ -118,6 +119,17 @@ export async function startHttp({ store, security }) {
   const sseSessions = new Map();
   // A freshly issued key is shown once on the next admin render, then forgotten.
   let pendingKey = null;
+
+  /**
+   * Notify every connected SSE session that the tool list has changed.
+   * Called whenever a gate, auth override, or auth mode changes — clients
+   * (Cursor, Bob, Copilot) will re-fetch tools/list without a manual reload.
+   */
+  function broadcastToolListChanged() {
+    for (const { server } of sseSessions.values()) {
+      try { server.server?.sendToolListChanged(); } catch { /* session may be closing */ }
+    }
+  }
 
   function takePendingKey() {
     const key = pendingKey;
@@ -216,6 +228,7 @@ export async function startHttp({ store, security }) {
     const mode = body(req, "authMode");
     if (mode) security.setAuthMode(mode);
     else security.setLocked(body(req, "writeToolsLocked") === "1" || req.body?.writeToolsLocked === true);
+    broadcastToolListChanged();
     if (wantsJson(req)) {
       res.json({ ok: true, security: security.snapshot() });
       return;
@@ -266,6 +279,7 @@ export async function startHttp({ store, security }) {
     const toolName = body(req, "tool");
     const enabled = body(req, "enabled") !== "0";
     security.setToolGate(toolName, enabled);
+    broadcastToolListChanged();
     if (wantsJson(req)) {
       res.json({ ok: true, security: security.snapshot() });
       return;
@@ -277,6 +291,7 @@ export async function startHttp({ store, security }) {
     const toolName = body(req, "tool");
     const requireAuth = body(req, "requireAuth") === "1";
     security.setToolAuth(toolName, requireAuth);
+    broadcastToolListChanged();
     if (wantsJson(req)) {
       res.json({ ok: true, security: security.snapshot() });
       return;
@@ -345,7 +360,9 @@ export async function startHttp({ store, security }) {
   });
 
   const port = Number(process.env.PORT || 8080);
-  const host = process.env.HOST || "0.0.0.0";
+  // Bind to localhost by default so the laptop demo does not expose to LAN.
+  // Set HOST=0.0.0.0 (or it is forced automatically) inside a container.
+  const host = process.env.HOST || (process.env.CONTAINER || process.env.CODE_ENGINE_PROJECT ? "0.0.0.0" : "127.0.0.1");
 
   await new Promise((resolve) => {
     app.listen(port, host, () => {

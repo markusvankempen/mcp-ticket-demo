@@ -55,6 +55,7 @@
     "nodejs",
     "node"
   ],
+  "icon": "media/icon.png",
   "publisher": "markusvankempen",
   "repository": {
     "type": "git",
@@ -81,7 +82,7 @@
         {
           "id": "summitMcp",
           "title": "LF MCP Demo",
-          "icon": "media/icon.svg"
+          "icon": "media/activitybar.svg"
         }
       ]
     },
@@ -167,7 +168,10 @@
       {
         "command": "summitMcp.openPanel",
         "title": "LF MCP Demo: Open diagnostics panel",
-        "icon": "$(graph)"
+        "icon": {
+          "light": "media/icons/light/diagnose.svg",
+          "dark": "media/icons/dark/diagnose.svg"
+        }
       },
       {
         "command": "summitMcp.startLocalHttp",

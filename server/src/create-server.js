@@ -1,29 +1,47 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { VERSION } from "./version.js";
 
+/** Return a successful tool response (structured JSON text). */
 function json(data) {
   return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
 }
 
+/**
+ * Return a tool error response.
+ * isError:true tells spec-compliant clients (Copilot, Bob, Cursor) the call failed
+ * without them needing to parse the JSON payload.
+ */
 function fail(message, extra = {}) {
-  return json({ ok: false, error: message, next: extra.next || "Read the error. It already says what to try.", ...extra });
+  return {
+    isError: true,
+    content: [{ type: "text", text: JSON.stringify({
+      ok: false,
+      error: message,
+      next: extra.next || "Read the error. It already says what to try.",
+      ...extra,
+    }, null, 2) }],
+  };
 }
 
 /** Turn a denied gate result into a tool error the model can act on. */
 function denied(result) {
-  return json({
-    ok: false,
-    error: result.error,
-    status: result.status,
-    denied: true,
-    principal: result.principal?.label || "anonymous",
-    retry_after_seconds: result.retryAfterSec,
-    next: result.status === 429
-      ? "Wait for the window to reset. Do not retry immediately."
-      : result.status === 503
-        ? "This tool has been disabled by an administrator. Check /tools for available tools."
-        : "Present a credential with the scope named in the error, then call the tool again.",
-  });
+  return {
+    isError: true,
+    content: [{ type: "text", text: JSON.stringify({
+      ok: false,
+      error: result.error,
+      status: result.status,
+      denied: true,
+      principal: result.principal?.label || "anonymous",
+      retry_after_seconds: result.retryAfterSec,
+      next: result.status === 429
+        ? "Wait for the window to reset. Do not retry immediately."
+        : result.status === 503
+          ? "This tool has been disabled by an administrator. Check /tools for available tools."
+          : "Present a credential with the scope named in the error, then call the tool again.",
+    }, null, 2) }],
+  };
 }
 
 /** Single source of truth for the tool inventory: name, required scope, one-line purpose. */
@@ -42,10 +60,26 @@ export const TOOL_CATALOG = [
 
 export const TOOL_COUNT = TOOL_CATALOG.length;
 
+/**
+ * Server instructions — injected by MCP clients on connect.
+ * The model reads this before its first tool call.
+ */
+const SERVER_INSTRUCTIONS = `\
+You are connected to mcp-ticket-demo, a helpdesk ticketing server.
+
+Rules:
+1. Call describe_server first, and again after any denial — it tells you the current auth mode, which scopes you hold, and every available tool.
+2. ALWAYS pass requester_email when calling create_ticket. Omitting it makes the service account the ticket owner and every reply goes to the bot, not the customer.
+3. Empty search results mean no tickets match — do not retry the same query.
+4. Write tools (create_ticket, add_comment, close_ticket) need a credential when auth mode is "write" or "all". The error message says exactly which scope and how to get a key.
+5. Use list_schemas → get_schema → run_query for data queries. Do not invent query_tickets, query_assets, or query_with_filter.
+6. Ticket resources are addressable: ticket://TCK-1001, tickets://open, schema://tickets.`;
+
 export function createMcpServer({ store, security, requestHeaders = () => ({}) }) {
   const server = new McpServer({
     name: "mcp-ticket-demo",
-    version: "1.5.0",
+    version: VERSION,
+    instructions: SERVER_INSTRUCTIONS,
   });
 
   const headers = () => requestHeaders() || {};
@@ -58,6 +92,142 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
     return security.authorizeCall(name, headers());
   }
 
+  // ── resources ──────────────────────────────────────────────────────────────
+  // Resources are addressable, pinnable data the client can subscribe to.
+  // get_ticket remains for tool-loop use; the resource is for pinning and refresh.
+
+  server.resource(
+    "ticket",
+    new ResourceTemplate("ticket://{id}", { list: undefined }),
+    async (uri, { id }) => {
+      const ticket = store.getTicket(id);
+      if (!ticket) {
+        return {
+          contents: [{
+            uri: uri.href,
+            mimeType: "application/json",
+            text: JSON.stringify({ ok: false, error: `Ticket ${id} not found.` }),
+          }],
+        };
+      }
+      return {
+        contents: [{
+          uri: uri.href,
+          mimeType: "application/json",
+          text: JSON.stringify(ticket, null, 2),
+        }],
+      };
+    },
+  );
+
+  server.resource(
+    "tickets-open",
+    new ResourceTemplate("tickets://open", { list: undefined }),
+    async (uri) => {
+      const tickets = store.listTickets({ status: "open", limit: 25 });
+      return {
+        contents: [{
+          uri: uri.href,
+          mimeType: "application/json",
+          text: JSON.stringify({ count: tickets.length, tickets }, null, 2),
+        }],
+      };
+    },
+  );
+
+  server.resource(
+    "schema",
+    new ResourceTemplate("schema://{name}", { list: undefined }),
+    async (uri, { name }) => {
+      const schema = store.getSchema(name);
+      if (!schema) {
+        return {
+          contents: [{
+            uri: uri.href,
+            mimeType: "application/json",
+            text: JSON.stringify({ ok: false, error: `No schema '${name}'. Available: tickets, customers, assets.` }),
+          }],
+        };
+      }
+      return {
+        contents: [{
+          uri: uri.href,
+          mimeType: "application/json",
+          text: JSON.stringify(schema, null, 2),
+        }],
+      };
+    },
+  );
+
+  // ── prompts ────────────────────────────────────────────────────────────────
+  // User-facing prompts (prompts/list + prompts/get).
+  // The user picks these; the model executes them. Each one teaches a talk lesson.
+
+  server.prompt(
+    "search-open-tickets",
+    "Search open tickets, then tell me who owns each one and whether any are service-account scars.",
+    {},
+    () => ({
+      messages: [{
+        role: "user",
+        content: { type: "text", text: "Search open tickets, then tell me who owns each one and whether any are service-account scars (attribution=service_account)." },
+      }],
+    }),
+  );
+
+  server.prompt(
+    "attribution-scar",
+    "Demonstrate the attribution scar: create a ticket without requester_email, then explain what went wrong.",
+    {},
+    () => ({
+      messages: [{
+        role: "user",
+        content: { type: "text", text: 'Create a support ticket with subject "Demo scar" and body "Testing attribution." Do NOT pass requester_email. Then get the ticket and tell me who owns it and why that is a problem.' },
+      }],
+    }),
+  );
+
+  server.prompt(
+    "schema-discovery",
+    "Demonstrate schema discovery: list_schemas → get_schema → run_query instead of inventing query_* tools.",
+    {},
+    () => ({
+      messages: [{
+        role: "user",
+        content: { type: "text", text: "List all queryable schemas, get the full shape of the tickets schema, then run a query for open tickets. Show me each step." },
+      }],
+    }),
+  );
+
+  server.prompt(
+    "close-ticket-flow",
+    "Find an open ticket, add a resolution comment, then close it.",
+    { ticket_id: z.string().optional().describe("Specific ticket id. If omitted, find the first open ticket.") },
+    ({ ticket_id }) => ({
+      messages: [{
+        role: "user",
+        content: {
+          type: "text",
+          text: ticket_id
+            ? `Add a comment to ticket ${ticket_id} saying "Resolved — closing now." then close it with that as the resolution.`
+            : "Find the first open ticket, add a comment saying \"Resolved — closing now.\" then close it with that as the resolution.",
+        },
+      }],
+    }),
+  );
+
+  server.prompt(
+    "diagnose-server",
+    "Call describe_server and explain the current auth mode, available tools, and any denied scopes.",
+    {},
+    () => ({
+      messages: [{
+        role: "user",
+        content: { type: "text", text: "Call describe_server and tell me: what is the current auth mode, which tools are available, which require a credential right now, and what scopes do I currently hold?" },
+      }],
+    }),
+  );
+
   // ── tools ──────────────────────────────────────────────────────────────────
 
   server.tool(
@@ -69,6 +239,7 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
       query: z.string().optional().describe("Keyword against subject and body. Example: hostname"),
       limit: z.number().int().min(1).max(25).default(10).describe("Max rows. Default 10"),
     },
+    { readOnlyHint: true, openWorldHint: false },
     async (params) => {
       const { status, requester_email, query, limit } = params;
       const allowed = gate("search_tickets");
@@ -93,6 +264,7 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
       body: z.string().describe("What happened, in the customer's words"),
       requester_email: z.string().optional().describe("Real customer email. Example: ada@example.com. Omit this only to reproduce the attribution scar."),
     },
+    { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     async (params) => {
       const { subject, body, requester_email } = params;
       const allowed = gate("create_ticket");
@@ -122,6 +294,7 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
       body: z.string().describe("Comment text"),
       author: z.string().optional().describe("Who is speaking. Example: ada@example.com"),
     },
+    { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     async (params) => {
       const { ticket_id, body, author } = params;
       const allowed = gate("add_comment");
@@ -144,6 +317,7 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
       resolution: z.string().optional().describe("Optional resolution note appended as the final comment. Example: 'Fixed by updating the cwd in mcp.json to use an absolute path.'"),
       closed_by: z.string().optional().describe("Who is closing. Example: support@example.com. Defaults to the service account."),
     },
+    { destructiveHint: true, idempotentHint: true, openWorldHint: false },
     async (params) => {
       const { ticket_id, resolution, closed_by } = params;
       const allowed = gate("close_ticket");
@@ -171,6 +345,7 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
     {
       ticket_id: z.string().describe("Ticket id. Example: TCK-1001"),
     },
+    { readOnlyHint: true, openWorldHint: false },
     async (params) => {
       const { ticket_id } = params;
       const allowed = gate("get_ticket");
@@ -189,7 +364,8 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
     "list_schemas",
     "List queryable schemas. Use this BEFORE run_query. This is the replacement for a pile of query_* tools — discover the shape, then run one query tool.",
     {},
-    async (params) => {
+    { readOnlyHint: true, openWorldHint: false },
+    async () => {
       const allowed = gate("list_schemas");
       if (!allowed.ok) return denied(allowed);
       security.recordSuccess("list_schemas", allowed.principal, {});
@@ -207,6 +383,7 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
     {
       name: z.enum(["tickets", "customers", "assets"]).describe("Schema name from list_schemas"),
     },
+    { readOnlyHint: true, openWorldHint: false },
     async (params) => {
       const { name } = params;
       const allowed = gate("get_schema");
@@ -230,6 +407,7 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
       fields: z.array(z.string()).optional().describe("Optional field projection. Example: [\"id\",\"subject\"]"),
       limit: z.number().int().min(1).max(50).default(10),
     },
+    { readOnlyHint: true, openWorldHint: false },
     async (params) => {
       const { schema, filter, fields, limit } = params;
       const allowed = gate("run_query");
@@ -255,6 +433,7 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
     {
       email: z.string().describe("Customer email. Example: ada@example.com"),
     },
+    { readOnlyHint: true, openWorldHint: false },
     async (params) => {
       const { email } = params;
       const allowed = gate("lookup_customer");
@@ -282,7 +461,8 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
     "describe_server",
     "Discover this server before you call anything else: identity, transport, auth mode, who the server thinks you are, which scopes you hold, your rate-limit budget, and every tool with the scope it needs and whether it is currently available. Call this first when a call was denied — it tells you exactly which credential is missing.",
     {},
-    async (params) => {
+    { readOnlyHint: true, openWorldHint: false },
+    async () => {
       // Open in every mode, but still rate limited — that is what the gate returns here.
       const allowed = gate("describe_server");
       if (!allowed.ok) return denied(allowed);
@@ -292,7 +472,7 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
       security.recordSuccess("describe_server", allowed.principal, {});
       return json({
         ok: true,
-        server: { name: "mcp-ticket-demo", version: "1.5.0", tool_count: TOOL_COUNT },
+        server: { name: "mcp-ticket-demo", version: VERSION, tool_count: TOOL_COUNT },
         you: {
           principal: principal.label,
           type: principal.type,
@@ -326,6 +506,18 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
           available: snap.toolGates[name] !== false,
           purpose,
         })),
+        resources: [
+          { uri: "ticket://{id}", description: "One ticket by id. Example: ticket://TCK-1001" },
+          { uri: "tickets://open",  description: "Current open ticket list (top 25)" },
+          { uri: "schema://{name}", description: "Query schema. Example: schema://tickets" },
+        ],
+        prompts: [
+          "search-open-tickets",
+          "attribution-scar",
+          "schema-discovery",
+          "close-ticket-flow",
+          "diagnose-server",
+        ],
         next: snap.authMode === "off"
           ? "Auth is off — every enabled tool is callable. Turn on write or all mode from /admin to see the gate."
           : "Call the tool you need. If it is denied, the error names the scope to ask for.",
