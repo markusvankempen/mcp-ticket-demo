@@ -1,20 +1,19 @@
-# LF MCP Demo
+# MCP Ticket Demo — Server, Tools & Auth
 
-[![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
-[![MCP](https://img.shields.io/badge/MCP-Protocol-5A29E4?style=for-the-badge)](https://modelcontextprotocol.io/)
-[![IBM Cloud](https://img.shields.io/badge/IBM-Cloud_Code_Engine-052FAD?style=for-the-badge&logo=ibm&logoColor=white)](https://www.ibm.com/products/code-engine)
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/MarkusvanKempen.lf-mcp-summit-demo?style=for-the-badge&logo=visualstudiocode&label=VS%20Code)](https://marketplace.visualstudio.com/items?itemName=MarkusvanKempen.lf-mcp-summit-demo)
+[![Open VSX](https://img.shields.io/open-vsx/v/markusvankempen/lf-mcp-summit-demo?style=for-the-badge&label=Open%20VSX)](https://open-vsx.org/extension/markusvankempen/lf-mcp-summit-demo)
 [![npm](https://img.shields.io/npm/v/mcp-ticket-demo?style=for-the-badge&logo=npm&logoColor=white&label=npm)](https://www.npmjs.com/package/mcp-ticket-demo)
 [![npm downloads](https://img.shields.io/npm/dm/mcp-ticket-demo?style=for-the-badge&logo=npm&logoColor=white&label=downloads)](https://www.npmjs.com/package/mcp-ticket-demo)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](https://github.com/markusvankempen/mcp-ticket-demo/blob/main/LICENSE)
-[![Version](https://img.shields.io/badge/Version-v1.3.0-blue?style=for-the-badge)](https://github.com/markusvankempen/mcp-ticket-demo)
 [![GitHub](https://img.shields.io/badge/GitHub-mcp--ticket--demo-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/markusvankempen/mcp-ticket-demo)
-[![Linux Foundation](https://img.shields.io/badge/Linux_Foundation-MCP_Dev_Summit_Toronto-003366?style=for-the-badge)](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![MCP](https://img.shields.io/badge/MCP-Protocol-5A29E4?style=for-the-badge)](https://modelcontextprotocol.io/)
 
-Control plane and bundled MCP server for the talk
-**"MCP as a Platform: What I Learned Building a Portfolio of MCP Servers"**
-at [MCP Dev Summit Toronto](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401).
+A **fully working MCP server** you can run in seconds — with 9 real tools, three auth modes, API key management, per-tool gates, rate limiting, and a live observability dashboard. Use it to learn MCP, test your IDE integration, or as a reference implementation.
 
-Install the extension, open any folder, and the full demo is ready — no cloning required.
+Works with **VS Code (GitHub Copilot)**, **IBM Bob**, **Cursor**, **Windsurf**, and **Cline** — install the extension and one click writes the correct `mcp.json` for all four IDEs at once.
+
+> Companion repo for [**MCP as a Platform**](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401) · MCP Dev Summit Toronto · Oct 2026
 
 ---
 
@@ -605,10 +604,9 @@ Lesson 4 — Laptop paths don't survive a container boundary
 
 ---
 
-**Author:** Markus van Kempen
-[mvankempen@ca.ibm.com](mailto:mvankempen@ca.ibm.com) ·
+**Author:** Markus van Kempen ·
 [markus.van.kempen@gmail.com](mailto:markus.van.kempen@gmail.com) ·
 [markusvankempen.github.io](https://markusvankempen.github.io/) ·
-[Speaking Session](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401)
+[MCP Dev Summit Talk](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401)
 
 *Personal open-source demo. Not an IBM product.*

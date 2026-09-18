@@ -1,7 +1,7 @@
 {
   "name": "lf-mcp-summit-demo",
-  "displayName": "LF MCP Demo",
-  "description": "LF MCP Dev Summit Toronto — control plane, bundled mcp-ticket-demo server, diagnostics, chat prompts, and one-click IDE config for VS Code, Bob, Cursor, and Windsurf.",
+  "displayName": "MCP Ticket Demo — Server, Tools & Auth",
+  "description": "Run a full MCP server with 9 tools, auth modes, API keys, rate limiting, per-tool gates, and live observability. One-click setup for VS Code, GitHub Copilot, Bob, Cursor, and Windsurf.",
   "version": "1.4.0",
   "keywords": [
     "mcp",
@@ -67,7 +67,7 @@
   "engines": {
     "vscode": "^1.90.0"
   },
-  "categories": ["AI", "Chat", "Other"],
+  "categories": ["AI", "Chat", "Education", "Other"],
   "activationEvents": [
     "onStartupFinished"
   ],
