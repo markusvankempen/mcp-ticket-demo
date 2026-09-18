@@ -269,16 +269,19 @@ async function runMcpCrud() {
 
   // 3. get_ticket — read back what we just created
   if (ticketId) {
-    const got = await mcpCall(base, "get_ticket", { id: ticketId }, auth);
+    const got = await mcpCall(base, "get_ticket", { ticket_id: ticketId }, auth);
     const gotText = extractContent(got) || "";
+    const subject = (() => {
+      try { return JSON.parse(gotText)?.ticket?.subject || "ok"; } catch { return "ok"; }
+    })();
     steps.push({
       name: `get_ticket (${ticketId})`,
       ok: got.ok && gotText.includes(ticketId),
-      detail: got.ok ? `Retrieved — subject: ${gotText.match(/subject[": ]+([^\n"]+)/i)?.[1] || "ok"}` : (got.error || `HTTP ${got.status}`),
+      detail: got.ok ? `Retrieved — subject: ${subject}` : (got.error || `HTTP ${got.status}`),
     });
 
     // 4. add_comment
-    const commented = await mcpCall(base, "add_comment", { id: ticketId, comment: "MCP CRUD test comment." }, auth);
+    const commented = await mcpCall(base, "add_comment", { ticket_id: ticketId, body: "MCP CRUD test comment.", author: "markus.van.kempen@gmail.com" }, auth);
     const commentedText = extractContent(commented) || "";
     steps.push({
       name: `add_comment (${ticketId})`,
@@ -287,11 +290,30 @@ async function runMcpCrud() {
       next: commented.ok ? undefined : "add_comment needs write scope. Check summitMcp.apiKey.",
     });
   } else {
-    steps.push({ name: "get_ticket", ok: false, detail: "Skipped — create_ticket failed." });
+    steps.push({ name: "get_ticket",  ok: false, detail: "Skipped — create_ticket failed." });
     steps.push({ name: "add_comment", ok: false, detail: "Skipped — create_ticket failed." });
+    steps.push({ name: "close_ticket", ok: false, detail: "Skipped — create_ticket failed." });
   }
 
-  // 5. search for the ticket we just created
+  // 5. close_ticket
+  if (ticketId) {
+    const closed = await mcpCall(base, "close_ticket", {
+      ticket_id: ticketId,
+      resolution: "Resolved by MCP CRUD test.",
+      closed_by: "markus.van.kempen@gmail.com",
+    }, auth);
+    const closedText = extractContent(closed) || "";
+    let closedOk = false;
+    try { closedOk = JSON.parse(closedText)?.ok === true; } catch { /* ignore */ }
+    steps.push({
+      name: `close_ticket (${ticketId})`,
+      ok: closed.ok && closedOk,
+      detail: closed.ok && closedOk ? "Closed — status: solved" : (closed.error || `HTTP ${closed.status}`),
+      next: closed.ok ? undefined : "close_ticket needs write scope. Check summitMcp.apiKey.",
+    });
+  }
+
+  // 6. search for the ticket we just created
   if (ticketId) {
     const search = await mcpCall(base, "search_tickets", { status: "open", limit: 20 }, auth);
     const searchText = extractContent(search) || "";
