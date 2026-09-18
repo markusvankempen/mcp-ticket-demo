@@ -106,7 +106,9 @@ Load the extension (build with `npm run package` in `extension/`, or F5 in the E
 
 IBM Bob: [docs/BOB.md](docs/BOB.md). Open the repo root, MCP tab, **Use MCP Servers**.
 
-Full walkthroughs: [docs/LOCAL.md](docs/LOCAL.md) · [docs/EXTENSION.md](docs/EXTENSION.md) · [docs/REMOTE.md](docs/REMOTE.md) · [docs/ADMIN-AND-SECURITY.md](docs/ADMIN-AND-SECURITY.md) · [docs/TALK-POINTS.md](docs/TALK-POINTS.md) · [docs/BOB.md](docs/BOB.md)
+Full walkthroughs: [docs/LOCAL.md](docs/LOCAL.md) · [docs/EXTENSION.md](docs/EXTENSION.md) · [docs/REMOTE.md](docs/REMOTE.md) · [docs/ADMIN-AND-SECURITY.md](docs/ADMIN-AND-SECURITY.md) · [docs/BOB.md](docs/BOB.md)
+
+**Building your own MCP server?** → [docs/LESSONS-LEARNED.md](docs/LESSONS-LEARNED.md) — 15 lessons, war stories, and a pre-publish checklist grounded in building this server.
 
 ---
 
