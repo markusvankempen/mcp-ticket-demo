@@ -30,7 +30,7 @@ Cursor / VS Code / IBM Bob spawn that after the mcp files are in place (already 
 }
 ```
 
-`.cursor/mcp.json` and `.bob/mcp.json` use the same command with `cwd: "mcp-ticket-demo/server"`. Bob also lists the nine tools in `alwaysAllow`.
+`.cursor/mcp.json` and `.bob/mcp.json` use the same command with `cwd: "mcp-ticket-demo/server"`. Bob also lists the ten tools in `alwaysAllow`.
 
 A Docker / Code Engine remote is a **second** server (`mcp-ticket-demo-remote`). Connecting remote does not replace native stdio. See [REMOTE.md](REMOTE.md).
 

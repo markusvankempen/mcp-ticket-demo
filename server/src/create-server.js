@@ -32,6 +32,7 @@ export const TOOL_CATALOG = [
   ["search_tickets", "read", "Find tickets by status / requester / keyword"],
   ["create_ticket", "write", "Open a ticket. Pass requester_email or the bot owns it."],
   ["add_comment", "write", "Comment on a known ticket id"],
+  ["close_ticket", "write", "Resolve and close a ticket. Optionally add a resolution note."],
   ["get_ticket", "read", "Fetch one ticket including attribution"],
   ["list_schemas", "read", "Discover query shapes before you query"],
   ["get_schema", "read", "Fields and filters for one schema"],
@@ -44,7 +45,7 @@ export const TOOL_COUNT = TOOL_CATALOG.length;
 export function createMcpServer({ store, security, requestHeaders = () => ({}) }) {
   const server = new McpServer({
     name: "mcp-ticket-demo",
-    version: "1.4.0",
+    version: "1.5.0",
   });
 
   const headers = () => requestHeaders() || {};
@@ -132,6 +133,35 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
       }
       security.recordSuccess("add_comment", allowed.principal, { ticket_id });
       return json({ ok: true, ticket });
+    },
+  );
+
+  server.tool(
+    "close_ticket",
+    "Resolve and close a support ticket. Sets status to 'solved' and records resolved_at. Optionally appends a resolution note as the final comment. If the ticket is already closed this is a no-op — it returns the ticket unchanged with alreadyClosed=true. Use add_comment first if you want to explain the resolution before closing.",
+    {
+      ticket_id: z.string().describe("Ticket id. Example: TCK-1001"),
+      resolution: z.string().optional().describe("Optional resolution note appended as the final comment. Example: 'Fixed by updating the cwd in mcp.json to use an absolute path.'"),
+      closed_by: z.string().optional().describe("Who is closing. Example: support@example.com. Defaults to the service account."),
+    },
+    async (params) => {
+      const { ticket_id, resolution, closed_by } = params;
+      const allowed = gate("close_ticket");
+      if (!allowed.ok) return denied(allowed);
+      const result = store.closeTicket(ticket_id, { resolution, closed_by });
+      if (!result) {
+        security.recordError("close_ticket", allowed.principal, { ticket_id }, `Ticket ${ticket_id} does not exist`);
+        return fail(`Ticket ${ticket_id} does not exist.`, { next: "Call search_tickets with status=all to find a valid id." });
+      }
+      security.recordSuccess("close_ticket", allowed.principal, { ticket_id });
+      return json({
+        ok: true,
+        ticket: result.ticket,
+        alreadyClosed: result.alreadyClosed,
+        next: result.alreadyClosed
+          ? `Ticket ${ticket_id} was already solved — no change made.`
+          : `Ticket ${ticket_id} is now closed. resolved_at: ${result.ticket.resolved_at}.`,
+      });
     },
   );
 
@@ -262,7 +292,7 @@ export function createMcpServer({ store, security, requestHeaders = () => ({}) }
       security.recordSuccess("describe_server", allowed.principal, {});
       return json({
         ok: true,
-        server: { name: "mcp-ticket-demo", version: "1.4.0", tool_count: TOOL_COUNT },
+        server: { name: "mcp-ticket-demo", version: "1.5.0", tool_count: TOOL_COUNT },
         you: {
           principal: principal.label,
           type: principal.type,

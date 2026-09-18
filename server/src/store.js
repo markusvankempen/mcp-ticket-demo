@@ -132,6 +132,19 @@ export function createStore() {
       return ticket;
     },
 
+    closeTicket(id, { resolution, closed_by } = {}) {
+      const ticket = tickets.find((t) => t.id === id);
+      if (!ticket) return null;
+      if (ticket.status === "solved") return { ticket, alreadyClosed: true };
+      ticket.status = "solved";
+      ticket.resolved_at = now();
+      if (resolution) {
+        ticket.comments.push({ author: closed_by || SERVICE_ACCOUNT, body: resolution, at: ticket.resolved_at });
+      }
+      log({ tool: "close_ticket", ticket: id, outcome: "closed" });
+      return { ticket, alreadyClosed: false };
+    },
+
     getSchema(name) {
       return SCHEMAS[name] || null;
     },

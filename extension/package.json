@@ -1,7 +1,7 @@
 {
   "name": "lf-mcp-summit-demo",
   "displayName": "MCP Ticket Demo — Server, Tools & Auth",
-  "description": "Run a full MCP server with 9 tools, auth modes, API keys, rate limiting, per-tool gates, and live observability. One-click setup for VS Code, GitHub Copilot, Bob, Cursor, and Windsurf.",
+  "description": "Run a full MCP server with 10 tools, auth modes, API keys, rate limiting, per-tool gates, and live observability. One-click setup for VS Code, GitHub Copilot, Bob, Cursor, and Windsurf.",
   "version": "1.4.1",
   "keywords": [
     "mcp",

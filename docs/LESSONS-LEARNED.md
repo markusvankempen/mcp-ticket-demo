@@ -1,7 +1,7 @@
 # Lessons Learned: Building a Real-World MCP Server
 
 > Grounded in building [`mcp-ticket-demo`](https://github.com/markusvankempen/mcp-ticket-demo) —
-> a full-stack MCP server with 9 tools, three auth modes, per-tool gating, rate limiting,
+> a full-stack MCP server with 10 tools, three auth modes, per-tool gating, rate limiting,
 > and a VS Code / Bob / Cursor / Windsurf control-plane extension.
 >
 > **Author:** Markus van Kempen · markus.van.kempen@gmail.com
@@ -59,7 +59,7 @@ If the difference is a parameter, use one tool with an optional parameter.
 
 The MCP spec has no tool-count limit but models have context limits, and the more tools
 you expose the more opportunity for the model to pick the wrong one.
-Nine tools covers a complete helpdesk workflow. Resist adding a tool for every edge case.
+Ten tools covers a complete helpdesk workflow. Resist adding a tool for every edge case.
 
 ### Scope each tool explicitly
 
@@ -204,7 +204,7 @@ the right shape. The server exposes one query tool. The model discovers the data
 | Viable on managed platforms | No (no local filesystem) | Yes |
 
 ```
-✓  Support both transports from day one. The same nine tools run on both.
+✓  Support both transports from day one. The same ten tools run on both.
 ✓  Read credentials from env vars in stdio mode (MCP_API_KEY, MCP_USERNAME).
 ✓  Never assume headers are present — they aren't in stdio.
 ```
@@ -397,7 +397,7 @@ handling policy than ticket IDs and statuses.
 ```
 Scope hierarchy (this server):
   read   →  open data: ticket IDs, statuses, subjects
-  write  →  mutations: create_ticket, add_comment
+  write  →  mutations: create_ticket, add_comment, close_ticket
   pii    →  customer records: email (in context), phone (redacted without pii scope)
   admin  →  implies all of the above
 ```

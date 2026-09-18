@@ -94,6 +94,9 @@ function runSmoke(store) {
     const found = store.getTicket(ticket.id);
     push("get_ticket", Boolean(found), found ? found.id : "missing");
 
+    const closed = store.closeTicket(ticket.id, { resolution: "Smoke test closed it.", closed_by: "ada@example.com" });
+    push("close_ticket", Boolean(closed) && !closed.alreadyClosed && closed.ticket.status === "solved", closed ? closed.ticket.status : "missing");
+
     const schemas = Object.keys(store.schemas);
     push("list_schemas", schemas.length === 3, schemas.join(", "));
 

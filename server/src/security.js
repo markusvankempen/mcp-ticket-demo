@@ -28,7 +28,7 @@
 
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
-export const WRITE_TOOLS = new Set(["create_ticket", "add_comment"]);
+export const WRITE_TOOLS = new Set(["create_ticket", "add_comment", "close_ticket"]);
 export const PII_TOOLS = new Set(["lookup_customer"]);
 /**
  * Discovery stays open in every mode. A client that cannot ask "what do you need
@@ -46,6 +46,7 @@ export const ALL_TOOLS = [
   "search_tickets",
   "create_ticket",
   "add_comment",
+  "close_ticket",
   "get_ticket",
   "list_schemas",
   "get_schema",

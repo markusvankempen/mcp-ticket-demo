@@ -23,7 +23,7 @@ The admin page picks one of three modes. `AUTH_MODE` sets the boot value.
 | Mode | What needs a credential |
 |---|---|
 | `off` | Nothing. Every tool is callable by anyone who can reach the server. The boring laptop default. |
-| `write` | `create_ticket`, `add_comment`, `lookup_customer`. Read tools stay open. |
+| `write` | `create_ticket`, `add_comment`, `close_ticket`, `lookup_customer`. Read tools stay open. |
 | `all` | Every tool call. Discovery still works, so a client can see the tools and learn what to ask for. |
 
 `describe_server` is open in every mode. A client that cannot ask *"what do you need from
@@ -50,7 +50,7 @@ stdio has no headers, so a local server reads the credential from its own enviro
 | Scope | Grants |
 |---|---|
 | `read` | `search_tickets`, `get_ticket`, `list_schemas`, `get_schema`, `run_query` |
-| `write` | `create_ticket`, `add_comment` — and implies `read` |
+| `write` | `create_ticket`, `add_comment`, `close_ticket` — and implies `read` |
 | `pii` | `lookup_customer` returns the real phone number instead of `REDACTED` |
 | `admin` | Implies all of the above |
 

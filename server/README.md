@@ -31,7 +31,7 @@ MCP_MODE=http   node src/index.js     ← Express: /mcp /sse /health /test /admi
 
 ---
 
-## 9 tools
+## 10 tools
 
 ```
 ┌──────────────────┬───────────┬────────────────────────────────────────────┐
@@ -52,6 +52,9 @@ MCP_MODE=http   node src/index.js     ← Express: /mcp /sse /health /test /admi
 │                  │           │ reply goes to the bot.                     │
 ├──────────────────┼───────────┼────────────────────────────────────────────┤
 │ add_comment      │ write     │ Comment on a known ticket id.              │
+├──────────────────┼───────────┼────────────────────────────────────────────┤
+│ close_ticket     │ write     │ Resolve a ticket. Optional resolution note │
+│                  │           │ becomes the last comment.                  │
 ├──────────────────┼───────────┼────────────────────────────────────────────┤
 │ list_schemas     │ read      │ Discover queryable schemas before calling  │
 │                  │           │ run_query. Replaces query_* proliferation. │

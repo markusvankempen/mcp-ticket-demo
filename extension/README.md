@@ -9,7 +9,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![MCP](https://img.shields.io/badge/MCP-Protocol-5A29E4?style=for-the-badge)](https://modelcontextprotocol.io/)
 
-A **fully working MCP server** you can run in seconds — with 9 real tools, three auth modes, API key management, per-tool gates, rate limiting, and a live observability dashboard. Use it to learn MCP, test your IDE integration, or as a reference implementation.
+A **fully working MCP server** you can run in seconds — with 10 real tools, three auth modes, API key management, per-tool gates, rate limiting, and a live observability dashboard. Use it to learn MCP, test your IDE integration, or as a reference implementation.
 
 Works with **VS Code (GitHub Copilot)**, **IBM Bob**, **Cursor**, **Windsurf**, and **Cline** — install the extension and one click writes the correct `mcp.json` for all four IDEs at once.
 
@@ -28,7 +28,7 @@ Extension (VS Code / Bob / Cursor / Windsurf)
     └── Send-to-chat prompts
 
 MCP Server  (pulled from npm: mcp-ticket-demo)
-├── 9 tools  (tickets · customers · assets · auth)
+├── 10 tools  (tickets · customers · assets · auth)
 ├── stdio transport  — local child process, no port
 ├── HTTP transport  — /sse  /mcp  /health  /test  /admin
 └── Optional Podman image  — same Dockerfile as Code Engine
@@ -160,7 +160,7 @@ but you can also paste them manually.
       "env": { "MCP_MODE": "stdio" },
       "alwaysAllow": [
         "describe_server", "search_tickets", "create_ticket",
-        "add_comment", "get_ticket", "list_schemas",
+        "add_comment", "close_ticket", "get_ticket", "list_schemas",
         "get_schema", "run_query", "lookup_customer"
       ],
       "disabled": false
@@ -178,7 +178,7 @@ but you can also paste them manually.
       "url": "https://<your-host>.codeengine.appdomain.cloud/mcp",
       "alwaysAllow": [
         "describe_server", "search_tickets", "create_ticket",
-        "add_comment", "get_ticket", "list_schemas",
+        "add_comment", "close_ticket", "get_ticket", "list_schemas",
         "get_schema", "run_query", "lookup_customer"
       ],
       "disabled": false
@@ -258,7 +258,7 @@ but you can also paste them manually.
       "env": { "MCP_MODE": "stdio" },
       "alwaysAllow": [
         "describe_server", "search_tickets", "create_ticket",
-        "add_comment", "get_ticket", "list_schemas",
+        "add_comment", "close_ticket", "get_ticket", "list_schemas",
         "get_schema", "run_query", "lookup_customer"
       ],
       "disabled": false
@@ -319,7 +319,7 @@ Add to any `env` block for stdio, or add a `headers` block for HTTP:
 
 ---
 
-## MCP Tools (9 total)
+## MCP Tools (10 total)
 
 ```
 ┌──────────────────┬───────────┬────────────────────────────────────────────┐
@@ -340,6 +340,9 @@ Add to any `env` block for stdio, or add a `headers` block for HTTP:
 │                  │           │ reply goes to the bot.                     │
 ├──────────────────┼───────────┼────────────────────────────────────────────┤
 │ add_comment      │ write     │ Comment on a known ticket id.              │
+├──────────────────┼───────────┼────────────────────────────────────────────┤
+│ close_ticket     │ write     │ Resolve a ticket. Optional resolution note │
+│                  │           │ becomes the last comment.                  │
 ├──────────────────┼───────────┼────────────────────────────────────────────┤
 │ list_schemas     │ read      │ Discover queryable schemas before calling  │
 │                  │           │ run_query. Replaces query_tickets et al.   │

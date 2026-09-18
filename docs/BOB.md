@@ -1,4 +1,4 @@
-# IBM Bob IDE
+  # IBM Bob IDE
 
 Bob is a third MCP client. Same server. Different config file.
 
@@ -36,9 +36,11 @@ Already committed as `.bob/mcp.json`. After `npm install` in `mcp-ticket-demo/se
       "cwd": "mcp-ticket-demo/server",
       "env": { "MCP_MODE": "stdio" },
       "alwaysAllow": [
+        "describe_server",
         "search_tickets",
         "create_ticket",
         "add_comment",
+        "close_ticket",
         "get_ticket",
         "list_schemas",
         "get_schema",
@@ -71,9 +73,11 @@ Bob's current remote transport is Streamable HTTP (`type: streamable-http`, `url
         "Authorization": "Bearer mcpk_your_api_key"
       },
       "alwaysAllow": [
+        "describe_server",
         "search_tickets",
         "create_ticket",
         "add_comment",
+        "close_ticket",
         "get_ticket",
         "list_schemas",
         "get_schema",

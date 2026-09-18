@@ -171,6 +171,29 @@ async function phase1() {
     check("add_comment bad id returns null", bad === null, `got ${bad}`);
   }
 
+  // ── close_ticket ───────────────────────────────────────────────────────────
+  suite("close_ticket");
+  {
+    const { ticket: opened } = store.createTicket({
+      subject: "Test: close me",
+      body: "open then close",
+      requester_email: "ada@example.com",
+    });
+    const first = store.closeTicket(opened.id, { resolution: "Fixed in test.", closed_by: "ada@example.com" });
+    check("close open ticket — ok", !!first && !first.alreadyClosed, `alreadyClosed=${first?.alreadyClosed}`);
+    check("close open ticket — status=solved", first?.ticket?.status === "solved", `got ${first?.ticket?.status}`);
+    check("close open ticket — resolved_at set", !!first?.ticket?.resolved_at, "resolved_at missing");
+    check("close open ticket — resolution comment", first?.ticket?.comments?.at(-1)?.body === "Fixed in test.",
+      `got ${first?.ticket?.comments?.at(-1)?.body}`);
+
+    const again = store.closeTicket(opened.id);
+    check("close already-solved — alreadyClosed=true", again?.alreadyClosed === true, `got ${again?.alreadyClosed}`);
+    check("close already-solved — still solved", again?.ticket?.status === "solved", `got ${again?.ticket?.status}`);
+
+    const missing = store.closeTicket("TCK-9999");
+    check("close missing ticket returns null", missing === null, `got ${missing}`);
+  }
+
   // ── list_schemas ───────────────────────────────────────────────────────────
   suite("list_schemas");
   {
@@ -265,6 +288,8 @@ async function phase1() {
     check("auth=write — search_tickets (read) allowed anon", readAllowed.ok, readAllowed.error);
     const writeBlocked = security.authorizeCall("create_ticket", {}, {});
     check("auth=write — create_ticket (write) blocked anon", !writeBlocked.ok, "expected denied");
+    const closeBlocked = security.authorizeCall("close_ticket", {}, {});
+    check("auth=write — close_ticket (write) blocked anon", !closeBlocked.ok, "expected denied");
     check("auth=write — denied status is 401", writeBlocked.status === 401,
       `got status=${writeBlocked.status}`);
 
@@ -295,7 +320,7 @@ async function phase1() {
     const authed = security.authorizeCall("create_ticket", keyHeaders, {});
     check("valid API key — create_ticket authorised in all mode", authed.ok,
       `${authed.error} (status ${authed.status})`);
-    check("valid key — principal type=api_key", authed.principal?.type === "api_key",
+    check("valid key — principal type=apikey", authed.principal?.type === "apikey",
       `got type=${authed.principal?.type}`);
     check("valid key — scopes include write", authed.principal?.scopes?.includes("write"),
       `scopes=${authed.principal?.scopes}`);
@@ -490,6 +515,41 @@ async function phase2() {
     check("add_comment bad id — ok=false", d2?.ok === false, `ok=${d2?.ok}`);
   }
 
+  suite("HTTP — close_ticket");
+  {
+    const created = await mcpPost(91, "tools/call", {
+      name: "create_ticket",
+      arguments: { subject: "HTTP close me", body: "wire test", requester_email: "ada@example.com" },
+    });
+    const createdData = safeJson(extractText(created.body));
+    const id = createdData?.ticket?.id;
+    check("close_ticket setup — created id", Boolean(id), `id=${id}`);
+
+    const r = await mcpPost(92, "tools/call", {
+      name: "close_ticket",
+      arguments: { ticket_id: id, resolution: "Closed from HTTP wire test.", closed_by: "ada@example.com" },
+    });
+    const data = safeJson(extractText(r.body));
+    check("close_ticket — HTTP 200", r.status === 200, `got ${r.status}`);
+    check("close_ticket — ok=true", data?.ok === true, `ok=${data?.ok}`);
+    check("close_ticket — status solved", data?.ticket?.status === "solved", `got ${data?.ticket?.status}`);
+    check("close_ticket — alreadyClosed=false", data?.alreadyClosed === false, `got ${data?.alreadyClosed}`);
+
+    const r2 = await mcpPost(93, "tools/call", {
+      name: "close_ticket",
+      arguments: { ticket_id: id },
+    });
+    const d2 = safeJson(extractText(r2.body));
+    check("close_ticket already closed — alreadyClosed=true", d2?.alreadyClosed === true, `got ${d2?.alreadyClosed}`);
+
+    const r3 = await mcpPost(94, "tools/call", {
+      name: "close_ticket",
+      arguments: { ticket_id: "TCK-9999" },
+    });
+    const d3 = safeJson(extractText(r3.body));
+    check("close_ticket bad id — ok=false", d3?.ok === false, `ok=${d3?.ok}`);
+  }
+
   suite("HTTP — list_schemas");
   {
     const r = await mcpPost(10, "tools/call", { name: "list_schemas", arguments: {} });
@@ -522,14 +582,17 @@ async function phase2() {
     check("run_query — ok=true", data?.ok === true, `ok=${data?.ok}`);
     check("run_query — count field present", typeof data?.count === "number", `count=${data?.count}`);
 
-    // bad schema
+    // bad schema — Zod enum rejects "orders" before handler runs; SDK returns isError:true
     const r2 = await mcpPost(31, "tools/call", {
       name: "run_query",
       arguments: { schema: "orders", limit: 5 },
     });
-    const d2 = safeJson(extractText(r2.body));
-    check("run_query bad schema — ok=false", d2?.ok === false, `ok=${d2?.ok}`);
-    check("run_query bad schema — error present", !!d2?.error, `error=${d2?.error}`);
+    const result2 = r2.body?.result ?? r2.body;
+    const isErr = result2?.isError === true
+      || r2.body?.error?.code !== undefined
+      || safeJson(extractText(r2.body))?.ok === false;
+    check("run_query bad schema — error returned", isErr,
+      `isError=${result2?.isError} rpcCode=${r2.body?.error?.code} body=${JSON.stringify(r2.body).slice(0,120)}`);
   }
 
   suite("HTTP — lookup_customer");

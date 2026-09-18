@@ -827,7 +827,7 @@ MCP_MODE=stdio node src/index.js</pre>
           <h4>Auth modes</h4>
           <ul class="checklist">
             <li><strong>off</strong> — all tools open, no credential needed. Default for local exploration.</li>
-            <li><strong>write</strong> — read tools open; <code>create_ticket</code>, <code>add_comment</code>, <code>lookup_customer</code> need a credential.</li>
+            <li><strong>write</strong> — read tools open; <code>create_ticket</code>, <code>add_comment</code>, <code>close_ticket</code>, <code>lookup_customer</code> need a credential.</li>
             <li><strong>all</strong> — every tool call requires a credential. Discovery remains open.</li>
           </ul>
           <p class="muted">Change the mode on <a href="/admin#adm-security">Admin → Security</a>.</p>
@@ -866,7 +866,7 @@ MCP_API_KEY=mcpk_... node src/index.js</pre>
 
       <div id="help-tools" class="pane" data-group="help">
         <div class="panel" id="tools">
-          <h4>9 purpose-built tools</h4>
+          <h4>10 purpose-built tools</h4>
           <p>No <code>request(path, method)</code>. Each tool name is a verb + noun that says when to use it.</p>
           <ul class="checklist">
             <li><code>describe_server</code> — call first, and after any denial. Reports auth mode, your scopes, rate budget.</li>
@@ -874,6 +874,7 @@ MCP_API_KEY=mcpk_... node src/index.js</pre>
             <li><code>get_ticket</code> — fetch one ticket by id including comments.</li>
             <li><code>create_ticket</code> — always pass <code>requester_email</code> or the service account owns it.</li>
             <li><code>add_comment</code> — comment on a known ticket id.</li>
+            <li><code>close_ticket</code> — resolve a ticket. Optional resolution note becomes the last comment.</li>
             <li><code>list_schemas</code> — discover queryable schemas before calling run_query.</li>
             <li><code>get_schema</code> — fields and filters for one schema.</li>
             <li><code>run_query</code> — the one query tool. Pass schema from list_schemas.</li>

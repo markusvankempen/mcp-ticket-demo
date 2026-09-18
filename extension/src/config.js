@@ -16,6 +16,7 @@ const ALWAYS_ALLOW = [
   "search_tickets",
   "create_ticket",
   "add_comment",
+  "close_ticket",
   "get_ticket",
   "list_schemas",
   "get_schema",

@@ -122,6 +122,7 @@ Descriptions say **when** to use the tool, not just what it does. Empty results 
 | `search_tickets` | Find tickets by status / requester / keyword | `read` | Journey name, not an HTTP wrapper |
 | `create_ticket` | Open a ticket. Pass `requester_email`. | `write` | Omit it → 201 + service-account owner |
 | `add_comment` | Comment on a known ticket id | `write` | Write tool; gated |
+| `close_ticket` | Resolve a known ticket id | `write` | Write tool; gated |
 | `get_ticket` | You already have `TCK-…` | `read` | Instance fetch |
 | `list_schemas` | Before any query | `read` | Discover the shape |
 | `get_schema` | After list, before query | `read` | Fields + filters |
