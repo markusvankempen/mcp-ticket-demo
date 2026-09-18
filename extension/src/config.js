@@ -2,6 +2,7 @@ const vscode = require("vscode");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const { execSync } = require("child_process");
 
 /** Set by extension.js after context is available. */
 let _context = null;
@@ -149,10 +150,38 @@ function stdioEnv() {
   return env;
 }
 
+/**
+ * Resolve the absolute path to the node binary.
+ * VS Code on macOS launches with a minimal GUI PATH (/usr/bin:/bin) that
+ * does not include /opt/homebrew/bin (Apple Silicon) or /usr/local/bin (Intel).
+ * Using the full path avoids ENOENT when VS Code spawns the child process.
+ */
+function resolveNodePath() {
+  // 1. Use the binary running this extension — guaranteed to exist.
+  if (process.execPath && fs.existsSync(process.execPath)) return process.execPath;
+  // 2. Shell lookup as fallback (works in integrated terminal context).
+  for (const shell of ["/bin/zsh", "/bin/bash"]) {
+    try {
+      const found = execSync(`${shell} -lc "which node"`, { timeout: 3000 }).toString().trim();
+      if (found && fs.existsSync(found)) return found;
+    } catch { /* ignore */ }
+  }
+  // 3. Common install locations on macOS.
+  for (const candidate of [
+    "/opt/homebrew/bin/node",   // Apple Silicon Homebrew
+    "/usr/local/bin/node",       // Intel Homebrew / nvm
+    "/usr/bin/node",
+  ]) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  // 4. Last resort — let the OS resolve it (will ENOENT if not on GUI PATH).
+  return "node";
+}
+
 function nativeStdioEntry() {
   return {
     type: "stdio",
-    command: "node",
+    command: resolveNodePath(),
     args: ["src/index.js"],
     cwd: serverDir(),
     env: stdioEnv(),
@@ -161,7 +190,7 @@ function nativeStdioEntry() {
 
 function bobNativeEntry() {
   return {
-    command: "node",
+    command: resolveNodePath(),
     args: ["src/index.js"],
     cwd: serverDir(),
     env: stdioEnv(),

@@ -2,7 +2,7 @@
   "servers": {
     "mcp-ticket-demo": {
       "type": "stdio",
-      "command": "node",
+      "command": "/opt/homebrew/bin/node",
       "args": [
         "src/index.js"
       ],
