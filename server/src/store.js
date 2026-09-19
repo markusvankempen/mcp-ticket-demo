@@ -145,6 +145,34 @@ export function createStore() {
       return { ticket, alreadyClosed: false };
     },
 
+    deleteTicket(id) {
+      const idx = tickets.findIndex((t) => t.id === id);
+      if (idx === -1) return false;
+      tickets.splice(idx, 1);
+      log({ tool: "admin.delete_ticket", ticket: id, outcome: "deleted" });
+      return true;
+    },
+
+    editTicket(id, { subject, requester_email, status }) {
+      const ticket = tickets.find((t) => t.id === id);
+      if (!ticket) return null;
+      if (subject !== undefined) ticket.subject = subject;
+      if (requester_email !== undefined) {
+        ticket.requester_email = requester_email;
+        ticket.attribution = requester_email === SERVICE_ACCOUNT ? "service_account" : "customer";
+      }
+      if (status !== undefined) ticket.status = status;
+      log({ tool: "admin.edit_ticket", ticket: id, outcome: "edited" });
+      return ticket;
+    },
+
+    reset() {
+      tickets.length = 0;
+      tickets.push(...seed());
+      seq = 1004;
+      log({ tool: "admin.reset", outcome: "factory reset — seed tickets restored" });
+    },
+
     getSchema(name) {
       return SCHEMAS[name] || null;
     },

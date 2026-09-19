@@ -75,6 +75,10 @@ Then open in a browser:
 | http://127.0.0.1:8787/log | Call counters, error log, full call trace |
 | http://127.0.0.1:8787/tools | Tool inventory with scope and auth status |
 
+![/health — liveness check with version, tool count, and cwd](docs/assets/screenshots/health.png)
+
+![/test — read-only smoke test scoring all four read tools](docs/assets/screenshots/test.png)
+
 Laptop login: `demo` / `demo`. On a public bind (`HOST=0.0.0.0`, container, Code Engine) set `ADMIN_PASSWORD` — the default is disabled. Write smoke is `/test?write=1` after admin sign-in.
 
 ---
@@ -111,6 +115,8 @@ Laptop login: `demo` / `demo`. On a public bind (`HOST=0.0.0.0`, container, Code
 Or install the extension and click **Register server with all IDEs** — it writes all four configs at once:
 [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=MarkusvanKempen.lf-mcp-summit-demo) · [Open VSX](https://open-vsx.org/extension/markusvankempen/lf-mcp-summit-demo)
 
+![Extension diagnostics panel — all steps passing, server confirmed healthy](docs/assets/screenshots/ext-diagnostic.png)
+
 ---
 
 ## 10 Tools
@@ -127,6 +133,8 @@ Or install the extension and click **Register server with all IDEs** — it writ
 | `get_schema` | `read` | After list, before query | Fields + filterable keys |
 | `run_query` | `read` | The one query tool | Replaces `query_tickets` / `query_assets` / … |
 | `lookup_customer` | `pii` | Customer record — phone is PII | Redacted without `pii` scope |
+
+![Chat tab — AI calls MCP tools to create and query tickets live](docs/assets/screenshots/ext-createdata_via_ai.png)
 
 ---
 

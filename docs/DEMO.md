@@ -680,6 +680,108 @@ The diagnostic catches the exact step that failed and tells you what to fix.
 
 ---
 
+## Demo 12 — Naive mode: bare 403 vs rich error (the retry-loop lesson)
+
+This is a **live contrast demo** — same prompt, same model, same server. The only thing that changes is one toggle on `/admin`.
+
+> **Lesson:** A tool isn't done when the API call succeeds. An error message isn't done when it says "no". It's done when the next thing the model does is right.
+
+### Setup
+
+1. Set auth mode → **write** on `/admin → Auth Mode` (so write tool denials actually fire).
+2. Leave naive mode **off** for now.
+
+### Step A — Hardened path (naive mode OFF)
+
+Fire the `create_ticket with requester` prompt into your LLM chat:
+
+```
+Create a ticket for ada@example.com about a missing hostname.
+Then search tickets owned by ada@example.com.
+```
+
+**What happens:** The model calls `create_ticket`, gets denied, reads the error:
+
+```json
+{
+  "ok": false,
+  "error": "create_ticket requires authentication because auth mode is \"write\". Send Authorization: Bearer <api key> (create one on /admin → API keys) or HTTP Basic...",
+  "status": 401,
+  "denied": true,
+  "next": "Call describe_server to see the auth mode and the scopes you hold..."
+}
+```
+
+The model **stops and asks** the user for a credential. One exchange. Done.
+
+### Step B — Enable naive mode
+
+On `/admin → Security → 🎭 Naive mode`, check **Enable naive mode** and click **Save**.
+
+The panel turns amber. A warning banner appears: *"⚠️ Naive mode is ON"*.
+
+### Step C — Same prompt, naive mode ON
+
+Fire the identical prompt again.
+
+**What happens:** The model calls `create_ticket`, gets:
+
+```json
+{
+  "ok": false,
+  "error": "forbidden",
+  "status": 403,
+  "denied": true,
+  "principal": "anonymous"
+}
+```
+
+No scope name. No `next` field. No hint.
+
+The model **retries** — maybe with a slightly different payload. Gets the same 403. Retries again. After 3–5 attempts it gives up and tells the user: *"The server is unavailable or you don't have permission."*
+
+The user has no idea what permission they need or how to get it.
+
+### Step D — Turn naive mode off
+
+Uncheck **Enable naive mode** on `/admin` and click **Save**. The amber panel disappears.
+
+Fire the prompt once more — the model asks for a key in one turn.
+
+> **The contrast the audience sees:** Same model. Same server. Same prompt. The only difference is whether the error message names the required scope. That one field is the difference between a model that helps and a model that loops.
+
+### curl — reproduce the naive denial directly
+
+```bash
+# Ensure auth mode is write
+curl -s -b /tmp/mcp_cookies.txt -X POST http://127.0.0.1:8787/admin/security \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "authMode=write"
+
+# Enable naive mode
+curl -s -b /tmp/mcp_cookies.txt -X POST http://127.0.0.1:8787/admin/naive-mode \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "enabled=1"
+
+# Call create_ticket with no credential — observe bare 403
+curl -s -X POST http://127.0.0.1:8787/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"create_ticket","arguments":{"subject":"Naive test","body":"Will this be denied?","requester_email":"ada@example.com"}}}'
+
+# Disable naive mode — same call now returns the actionable error
+curl -s -b /tmp/mcp_cookies.txt -X POST http://127.0.0.1:8787/admin/naive-mode \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "enabled=0"
+
+# Reset auth mode
+curl -s -b /tmp/mcp_cookies.txt -X POST http://127.0.0.1:8787/admin/security \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "authMode=off"
+```
+
+---
+
 ## Auth modes — quick reference
 
 | Mode | What's locked | When to use |

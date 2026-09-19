@@ -2,7 +2,7 @@
   "summitMcp.probeTarget": "native-http",
   "cline.mcpServers": {
     "mcp-ticket-demo": {
-      "command": "node",
+      "command": "/opt/homebrew/bin/node",
       "args": [
         "src/index.js"
       ],

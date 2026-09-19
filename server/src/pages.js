@@ -1,4 +1,5 @@
 import { TOOL_CATALOG } from "./create-server.js";
+import { VERSION } from "./version.js";
 
 const AUTH_MODE_COPY = {
   off: ["Open", "No credential needed. Every tool is callable by anyone who can reach the server."],
@@ -23,6 +24,7 @@ body { margin:0; font: 15px/1.45 Manrope, -apple-system, Segoe UI, sans-serif; b
 .header h1 { font: 600 14px/1.2 ui-monospace, Menlo, monospace; color: var(--green); margin: 0; }
 .header h1 span { color: var(--muted); font-weight: 400; }
 .live { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font: 10px ui-monospace, Menlo, monospace; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; }
+.version { font: 11px ui-monospace, Menlo, monospace; color: var(--muted); font-weight: normal; margin-left: 6px; }
 .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--coral); flex-shrink:0; }
 .dot.on { background: var(--green); box-shadow: 0 0 5px var(--green); }
 .nav-tabs { max-width: 1100px; margin: 0 auto; padding: 0 20px; display: flex; gap: 2px; overflow-x: auto; }
@@ -101,6 +103,7 @@ pre { background: var(--green-dark); color: #dff5d9; padding: 14px; border-radiu
 .note { font-size: 12px; color: var(--muted); margin-top: 20px; }
 .warn { color: #9a3b22; }
 .panel { background: var(--cream); border: 1px solid var(--line); border-radius: 12px; padding: 14px 17px; margin: 10px 0; }
+.panel-warning { border-color: #d97706; background: #fffbeb; }
 .panel h4 { margin: 0 0 4px; font-size: 14px; }
 .panel p { margin: 4px 0 10px; font-size: 13px; color: var(--muted); }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; align-items: start; }
@@ -235,7 +238,7 @@ function chrome({ title, tab, liveOn, liveLabel, body, locked = false }) {
 <body>
   <header class="header">
     <div class="header-main">
-      <h1>mcp-ticket-demo <span>dashboard</span></h1>
+      <h1>mcp-ticket-demo <span>dashboard</span> <span class="version">v${VERSION}</span></h1>
       <span class="live"><span class="dot${liveOn ? " on" : ""}"></span>${escapeHtml(liveLabel || "http")}</span>
     </div>
     <nav class="nav-tabs">${navTabs}</nav>
@@ -387,6 +390,7 @@ function authModePanel(security) {
   }).join("");
 
   const auditChecked = security.auditMode ? " checked" : "";
+  const naiveChecked = security.naiveMode ? " checked" : "";
 
   return `<div class="panel">
     <h4>Auth mode ${helpToggle("admin-auth", "Auth modes", "<b>off</b>: open.<br><b>write</b>: read tools open; write/PII need scopes.<br><b>all</b>: every call needs credentials.", { text: "Security docs", url: "/help#security" })}</h4>
@@ -395,6 +399,20 @@ function authModePanel(security) {
       <div class="modes">${modes}</div>
       <button type="submit">Apply mode</button>
     </form>
+  </div>
+  <div class="panel${security.naiveMode ? ' panel-warning' : ''}">
+    <h4>🎭 Naive mode ${helpToggle("admin-naive", "Naive mode (demo)", "When <b>on</b>, anonymous denials on write/PII tools return a bare <code>{&quot;error&quot;:&quot;forbidden&quot;,&quot;status&quot;:403}</code> with no scope name and no <code>next</code> hint.<br><br>The model retries in a loop and eventually reports the server is unavailable.<br><br>Turn it <b>off</b> to switch to the hardened path — the model reads the scope, asks for a key, and succeeds.<br><br>Set auth mode to <b>write</b> or <b>all</b> first so denials actually trigger.", { text: "DEMO.md", url: "https://github.com/markusvankempen/mcp-ticket-demo/blob/main/docs/DEMO.md" })}</h4>
+    <p>Demo toggle: <strong>on</strong> = bare 403, model loops &nbsp;·&nbsp; <strong>off</strong> = rich error, model asks for a key.</p>
+    <form method="post" action="/admin/naive-mode">
+      <div class="field-row" style="align-items:center">
+        <label style="display:inline-flex;gap:6px;align-items:center;font-size:13px">
+          <input type="checkbox" name="enabled" value="1"${naiveChecked} style="width:auto">
+          Enable naive mode
+        </label>
+        <button type="submit"${security.naiveMode ? ' class="danger"' : ''}>Save</button>
+      </div>
+    </form>
+    ${security.naiveMode ? '<p class="note" style="color:#b45309;margin-top:8px">⚠️ Naive mode is ON — write/PII tool denials return a bare 403. Turn this off after the demo.</p>' : ''}
   </div>
   <div class="panel">
     <h4>Audit mode ${helpToggle("admin-audit", "Audit / Call Trace", "When on, every tool call (success, error, denied) is recorded in the call trace on the <a href='/log#log-trace'>Log</a> page. There is a 200-entry ring buffer.", { text: "Log page", url: "/log" })}</h4>
@@ -557,8 +575,14 @@ export function adminPage({ security, store, adminUser, info, issuedKey }) {
       <td>${escapeHtml(t.requester_email)}</td>
       <td>${t.attribution === "service_account" ? '<span class="tag coral">service acct</span>' : '<span class="tag grey">customer</span>'}</td>
       <td><span class="tag${t.status === "open" ? "" : " grey"}">${escapeHtml(t.status)}</span></td>
+      <td style="white-space:nowrap">
+        <button class="secondary" style="padding:3px 8px;font-size:11px" onclick="openEdit('${escapeHtml(t.id)}','${escapeHtml(t.subject.replace(/'/g,"\\\'"))}','${escapeHtml(t.requester_email)}','${escapeHtml(t.status)}')">Edit</button>
+        <form method="post" action="/admin/tickets/${escapeHtml(t.id)}/delete" style="display:inline" onsubmit="return confirm('Delete ${escapeHtml(t.id)}?')">
+          <button class="danger" type="submit" style="padding:3px 8px;font-size:11px">Delete</button>
+        </form>
+      </td>
     </tr>`
-  ).join("") || "<tr><td colspan=5 class='muted'>No tickets yet.</td></tr>";
+  ).join("") || "<tr><td colspan=6 class='muted'>No tickets yet.</td></tr>";
 
   const auditRows = audit.map((a) =>
     `<tr><td class="ts">${escapeHtml(a.at.slice(11, 19))}</td><td class="mono">${escapeHtml(a.tool || "")}</td><td>${escapeHtml(a.principal || "—")}</td><td>${escapeHtml(a.outcome || a.ticket || a.email || "")}</td></tr>`
@@ -614,10 +638,53 @@ export function adminPage({ security, store, adminUser, info, issuedKey }) {
       </div>
 
       <div id="adm-data" class="pane" data-group="admin">
-        <h3>Recent tickets</h3>
+
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <h3 style="margin:0">Tickets</h3>
+          <form method="post" action="/admin/reset" style="margin-left:auto" onsubmit="return confirm('Factory reset? All tickets will be replaced with the 3 seed tickets and the counter resets to TCK-1004.')">
+            <button class="danger" type="submit" style="padding:4px 10px;font-size:12px">🗑 Factory reset</button>
+          </form>
+        </div>
+        <p class="muted" style="margin-bottom:8px;font-size:12px">Showing last 10. Use <strong>Edit</strong> to change subject / requester / status. <strong>Delete</strong> removes permanently. Factory reset restores the 3 seed tickets.</p>
         ${searchRow("ticketSearch", "ticketTable", "Filter tickets…")}
-        <div class="tbl-wrap"><table id="ticketTable"><thead><tr><th>Id</th><th>Subject</th><th>Requester</th><th>Attribution</th><th>Status</th></tr></thead>
+        <div class="tbl-wrap"><table id="ticketTable"><thead><tr><th>Id</th><th>Subject</th><th>Requester</th><th>Attribution</th><th>Status</th><th></th></tr></thead>
         <tbody>${ticketRows}</tbody></table></div>
+
+        <!-- edit modal -->
+        <div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center">
+          <div style="background:#fff;border-radius:12px;padding:24px 28px;width:min(480px,92vw);box-shadow:0 8px 32px rgba(0,0,0,.2)">
+            <h4 style="margin:0 0 14px">Edit ticket <span id="editIdLabel" style="font-weight:normal;color:var(--muted)"></span></h4>
+            <form method="post" id="editForm" action="">
+              <label class="field" style="display:block;margin-bottom:10px">Subject<input name="subject" id="editSubject" style="width:100%;margin-top:4px"></label>
+              <label class="field" style="display:block;margin-bottom:10px">Requester email<input name="requester_email" id="editEmail" style="width:100%;margin-top:4px"></label>
+              <label class="field" style="display:block;margin-bottom:16px">Status
+                <select name="status" id="editStatus" style="width:100%;margin-top:4px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:13px">
+                  <option value="open">open</option>
+                  <option value="pending">pending</option>
+                  <option value="solved">solved</option>
+                </select>
+              </label>
+              <div style="display:flex;gap:8px;justify-content:flex-end">
+                <button type="button" class="secondary" onclick="closeEdit()">Cancel</button>
+                <button type="submit">Save changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <script>
+          function openEdit(id, subject, email, status) {
+            document.getElementById('editIdLabel').textContent = id;
+            document.getElementById('editSubject').value = subject;
+            document.getElementById('editEmail').value = email;
+            document.getElementById('editStatus').value = status;
+            document.getElementById('editForm').action = '/admin/tickets/' + id + '/edit';
+            const m = document.getElementById('editModal');
+            m.style.display = 'flex';
+          }
+          function closeEdit() { document.getElementById('editModal').style.display = 'none'; }
+          document.getElementById('editModal').addEventListener('click', function(e){ if(e.target===this) closeEdit(); });
+        </script>
+
         <h3>Audit trail</h3>
         ${searchRow("auditSearch", "auditTable", "Filter audit events…")}
         <div class="tbl-wrap"><table id="auditTable"><thead><tr><th>Time</th><th>Event</th><th>Caller</th><th>Detail</th></tr></thead>
@@ -789,49 +856,165 @@ export function helpPage() {
       <h2>Guides &amp; Reference.<br><span>How everything fits together.</span></h2>
 
       ${pageTabs("help", [
-        ["help-start", "Quick start"],
+        ["help-start",    "Quick start"],
+        ["help-demos",    "Demo flow"],
         ["help-security", "Security"],
-        ["help-pages", "Pages"],
-        ["help-tools", "Tools"],
+        ["help-pages",    "Pages"],
+        ["help-tools",    "Tools"],
+        ["help-lessons",  "Lessons"],
       ])}
 
+      <!-- ── Quick start ──────────────────────────────────────────────── -->
       <div id="help-start" class="pane active" data-group="help">
         <div class="panel" id="local">
           <h4>1. Two transports</h4>
-          <p>stdio for IDEs (VS Code, Cursor, Bob, Windsurf) — no port. HTTP for browsers, diagnostics, and cloud.</p>
+          <p>stdio for IDEs (VS Code, Cursor, Bob, Windsurf) — no port, no URL, no browser. HTTP for the dashboard pages, the <code>/mcp</code> endpoint, and cloud deploys.</p>
           <pre>cd server && npm install
-# HTTP (browser pages + /mcp endpoint)
+# HTTP — opens /health /test /admin /tools /log /help /mcp
 MCP_MODE=http PORT=8787 node src/index.js
-# stdio (what the IDE spawns)
+# stdio — what the IDE spawns as a child process
 MCP_MODE=stdio node src/index.js</pre>
         </div>
         <div class="panel">
           <h4>2. Register with an IDE</h4>
-          <p>Use the LF MCP Demo extension: click <strong>Register server with all IDEs</strong> — it writes the correct config to VS Code, Cursor, Bob, and Windsurf at once, then tells you which files changed. Reload the window after.</p>
+          <p>Use the <strong>LF MCP Demo</strong> extension → <strong>Register server with all IDEs</strong>. It writes the correct config to VS Code, Cursor, Bob, and Windsurf simultaneously. Reload the window after.</p>
           <p>Or add manually to <code>.vscode/mcp.json</code>:</p>
           <pre>{
   "servers": {
     "mcp-ticket-demo": {
       "type": "stdio",
-      "command": "node",
-      "args": ["src/index.js"],
-      "cwd": "/path/to/mcp-ticket-demo/server",
+      "command": "npx",
+      "args": ["mcp-ticket-demo"],
       "env": { "MCP_MODE": "stdio" }
     }
   }
 }</pre>
+          <p class="muted">Use <code>npx</code> — never hardcode an absolute path. An absolute path works on your laptop and silently returns 0 tools inside a container.</p>
+        </div>
+        <div class="panel">
+          <h4>3. Verify</h4>
+          <pre># Is it alive?
+curl http://127.0.0.1:8787/health?format=json | jq .ok
+
+# Do tools actually work?
+curl http://127.0.0.1:8787/test?format=json | jq .ok
+
+# First MCP call — discover the server
+curl -s -X POST http://127.0.0.1:8787/mcp \\
+  -H "Content-Type: application/json" \\
+  -H "Accept: application/json" \\
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"describe_server","arguments":{}}}' \\
+  | jq .result</pre>
         </div>
       </div>
 
+      <!-- ── Demo flow ───────────────────────────────────────────────── -->
+      <div id="help-demos" class="pane" data-group="help">
+        <p class="muted" style="margin-bottom:12px">Each demo is a self-contained live exercise. Run them in order or jump to any one. All use the Chat tab in the extension or a direct curl command.</p>
+
+        <div class="panel">
+          <h4>Demo 1 — Health check: is it alive?</h4>
+          <p>Open <a href="/health">/health</a> — or: <code>curl http://127.0.0.1:8787/health?format=json</code></p>
+          <p class="muted">Lesson: <em>A 200 means the process is running, not that a tool call will succeed.</em></p>
+        </div>
+
+        <div class="panel">
+          <h4>Demo 2 — Smoke test: does it actually work?</h4>
+          <p>Open <a href="/test">/test</a> — or: <code>curl http://127.0.0.1:8787/test?format=json</code></p>
+          <p class="muted">Lesson: <em>/test runs every read-only tool and scores the payloads, not just HTTP 200. Green /health + failing /test means the process started but tools don't work.</em></p>
+        </div>
+
+        <div class="panel">
+          <h4>Demo 3 — Discover the server</h4>
+          <p>Prompt: <em>"Call describe_server. Tell me the auth mode, my scopes, rate-limit budget, and which tools need a credential."</em></p>
+          <p class="muted">Lesson: <em>describe_server is always open. A client that can't ask "what do you need from me?" can only guess — and guessing models retry in a loop.</em></p>
+        </div>
+
+        <div class="panel">
+          <h4>Demo 4 — Search tickets</h4>
+          <p>Prompt: <em>"Search open tickets, then tell me who owns each one."</em></p>
+          <p class="muted">Lesson: <em>Intent-named tools vs request(path, method). The tool name says when to use it.</em></p>
+        </div>
+
+        <div class="panel">
+          <h4>Demo 5A — Attribution scar (naive)</h4>
+          <p>Prompt: <em>"Create a ticket with subject 'Need the remote URL' and body 'demo' — do not pass requester_email. Then tell me who owns it."</em></p>
+          <p class="muted">Lesson: <em>201 is not done. The service account owns the ticket and every reply goes to the bot, not the customer.</em></p>
+        </div>
+
+        <div class="panel">
+          <h4>Demo 5B — Attribution correct</h4>
+          <p>Prompt: <em>"Create a ticket for ada@example.com about a missing hostname. Then search tickets owned by ada@example.com."</em></p>
+          <p class="muted">Lesson: <em>A tool isn't done when the API call succeeds — it's done when the next thing that happens is right.</em></p>
+        </div>
+
+        <div class="panel">
+          <h4>Demo 6 — Comment on a ticket</h4>
+          <p>Prompt: <em>"Search open tickets, pick one, then add a comment as support@example.com explaining what you found."</em></p>
+        </div>
+
+        <div class="panel">
+          <h4>Demo 7 — Close a ticket</h4>
+          <p>Prompt: <em>"Search open tickets, pick one, then close_ticket with a short resolution note. Tell me the new status and resolved_at."</em></p>
+          <p class="muted">Lesson: <em>close_ticket is idempotent — calling it twice returns alreadyClosed=true without error.</em></p>
+        </div>
+
+        <div class="panel">
+          <h4>Demo 8 — Schema discovery</h4>
+          <p>Prompt: <em>"List schemas, get the tickets schema, then run_query on tickets filtered to status=open."</em></p>
+          <p class="muted">Lesson: <em>list_schemas → get_schema → run_query replaces seven near-identical query_* tools. The model discovers the shape; the server exposes one tool.</em></p>
+        </div>
+
+        <div class="panel">
+          <h4>Demo 9 — PII gating</h4>
+          <p>Prompt: <em>"Look up the customer record for ada@example.com. Is the phone number visible? Explain why or why not."</em></p>
+          <p class="muted">Lesson: <em>Same tool, same endpoint — different scopes expose different fields.</em></p>
+        </div>
+
+        <div class="panel">
+          <h4>Demo 10 — Auth modes</h4>
+          <p>Set auth mode → <strong>write</strong> on <a href="/admin#adm-security">Admin → Security</a>. Then prompt: <em>"Call describe_server and tell me the current auth mode, which tools are locked, and what scope each write tool requires."</em></p>
+          <p class="muted">Lesson: <em>MCP describes tools. It doesn't describe permissions. The server invents its own.</em></p>
+        </div>
+
+        <div class="panel">
+          <h4>Demo 11 — The silent 0-tools failure</h4>
+          <p>Edit your mcp.json to use a bad cwd: <code>"cwd": "/tmp/does-not-exist"</code>. Ask the model to search tickets.</p>
+          <p class="muted">Lesson: <em>Node tries to resolve src/index.js relative to a path that doesn't exist. It exits. The MCP client reads an empty response and reports 0 tools — with no error, no warning, nothing in a log.</em></p>
+        </div>
+
+        <div class="panel${/* highlight the new demo */ ''}">
+          <h4>Demo 12 — Naive mode: bare 403 vs rich error</h4>
+          <ol style="margin:6px 0 8px;padding-left:20px;font-size:13px">
+            <li>Set auth mode → <strong>write</strong> on <a href="/admin#adm-security">Admin → Security</a>.</li>
+            <li>Enable <strong>🎭 Naive mode</strong> on the same page.</li>
+            <li>Prompt: <em>"Create a ticket for ada@example.com about a missing hostname."</em> — watch the model retry on a bare 403.</li>
+            <li>Turn naive mode <strong>off</strong>. Same prompt — the model reads the scope, asks for a key, succeeds in one turn.</li>
+          </ol>
+          <p class="muted">Lesson: <em>That one <code>next</code> field is the difference between a model that helps and a model that loops.</em></p>
+        </div>
+      </div>
+
+      <!-- ── Security ────────────────────────────────────────────────── -->
       <div id="help-security" class="pane" data-group="help">
         <div class="panel">
           <h4>Auth modes</h4>
           <ul class="checklist">
             <li><strong>off</strong> — all tools open, no credential needed. Default for local exploration.</li>
             <li><strong>write</strong> — read tools open; <code>create_ticket</code>, <code>add_comment</code>, <code>close_ticket</code>, <code>lookup_customer</code> need a credential.</li>
-            <li><strong>all</strong> — every tool call requires a credential. Discovery remains open.</li>
+            <li><strong>all</strong> — every tool call requires a credential. Discovery (<code>describe_server</code>) always remains open.</li>
           </ul>
-          <p class="muted">Change the mode on <a href="/admin#adm-security">Admin → Security</a>.</p>
+          <p class="muted">Change on <a href="/admin#adm-security">Admin → Security</a>. Or boot with <code>AUTH_MODE=write npx mcp-ticket-demo</code>.</p>
+        </div>
+        <div class="panel">
+          <h4>Scopes</h4>
+          <ul class="checklist">
+            <li><code>read</code> — all read tools.</li>
+            <li><code>write</code> — implies read. Unlocks create_ticket, add_comment, close_ticket.</li>
+            <li><code>pii</code> — implies read. Unredacts phone on lookup_customer.</li>
+            <li><code>admin</code> — implies all. Key management, mode changes, gate toggles.</li>
+          </ul>
+          <p class="muted">Issue keys with specific scopes on <a href="/admin#adm-keys">Admin → API Keys</a>.</p>
         </div>
         <div class="panel">
           <h4>Passing credentials</h4>
@@ -845,42 +1028,109 @@ curl -H 'x-api-key: mcpk_...' ...
 MCP_API_KEY=mcpk_... node src/index.js</pre>
         </div>
         <div class="panel">
-          <h4>Per-tool gates</h4>
-          <p>Each tool can be disabled individually on <a href="/admin#adm-gates">Admin → Tool Gates</a> without changing the global auth mode. Disabled tools return HTTP 503 immediately.</p>
+          <h4>Per-tool gates &amp; auth locks</h4>
+          <p><strong>Disable</strong> a tool on <a href="/admin#adm-gates">Admin → Tool Gates</a> — any caller gets 503 regardless of auth mode.</p>
+          <p><strong>Lock</strong> a tool — forces that tool to require a credential even when global auth mode is <em>off</em>.</p>
+          <p>Both changes broadcast <code>notifications/tools/list_changed</code> to connected sessions (Bob, Cursor). One-shot curl calls see the new list on the next request.</p>
+        </div>
+        <div class="panel">
+          <h4>🎭 Naive mode</h4>
+          <p>Demo toggle. When on, anonymous denials on write/PII tools return a bare <code>{"error":"forbidden","status":403}</code> with no scope name and no <code>next</code> hint. The model retries in a loop.</p>
+          <p>Turn it off and the same denial becomes actionable — the model asks for a key in one turn. See <strong>Demo 12</strong> above.</p>
         </div>
       </div>
 
+      <!-- ── Pages ───────────────────────────────────────────────────── -->
       <div id="help-pages" class="pane" data-group="help">
-        <div class="panel" id="smoke">
+        <div class="panel">
           <h4>Pages and access</h4>
           <ul class="checklist">
-            <li><strong>/health</strong> — public. Process alive? auth mode? rate limit? cwd only on localhost.</li>
-            <li><strong>/test</strong> — public read-only smoke. <code>/test?write=1</code> creates and closes a ticket and requires admin sign-in.</li>
-            <li><strong>/tools</strong> — public. Full tool inventory with current scope enforcement state.</li>
-            <li><strong>/admin</strong> 🔒 — requires login. Auth mode, keys, tool gates, lab, data, users.</li>
-            <li><strong>/log</strong> 🔒 — requires login. Tool counters, error log (searchable, expandable), call trace, audit trail.</li>
+            <li><a href="/health"><strong>/health</strong></a> — public. Process alive? auth mode? tool count? rate limit? <code>cwd</code> only on localhost.</li>
+            <li><a href="/test"><strong>/test</strong></a> — public read-only smoke. <code>/test?write=1</code> creates and closes a ticket (requires admin sign-in).</li>
+            <li><a href="/tools"><strong>/tools</strong></a> — public. Full tool inventory with current scope enforcement state.</li>
+            <li><strong>/admin</strong> 🔒 — requires login (<code>demo</code>/<code>demo</code> on localhost). Auth mode, keys, tool gates, lab, ticket management, users.</li>
+            <li><strong>/log</strong> 🔒 — requires login. Tool counters, error log (searchable, expandable), call trace when audit mode is on.</li>
             <li><strong>/mcp</strong> — Streamable HTTP MCP transport (JSON-RPC 2.0).</li>
-            <li><strong>/sse</strong> — Legacy SSE transport (Cursor mcp-proxy).</li>
+            <li><strong>/sse</strong> — Legacy SSE MCP transport (Cursor mcp-proxy).</li>
+            <li><a href="/help"><strong>/help</strong></a> — this page.</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h4>JSON format</h4>
+          <p>Add <code>?format=json</code> to /health and /test for machine-readable output, or set <code>Accept: application/json</code>.</p>
+          <pre>curl http://127.0.0.1:8787/health?format=json | jq .
+curl http://127.0.0.1:8787/test?format=json | jq .ok</pre>
+        </div>
+      </div>
+
+      <!-- ── Tools ───────────────────────────────────────────────────── -->
+      <div id="help-tools" class="pane" data-group="help">
+        <div class="panel">
+          <h4>10 purpose-built tools — <a href="/tools" style="font-weight:normal;font-size:12px">see /tools for live auth state →</a></h4>
+          <p>No <code>request(path, method)</code>. Each name is a verb + noun that says <em>when</em> to use it.</p>
+          <ul class="checklist">
+            <li><code>describe_server</code> <span class="tag grey" style="font-size:10px">read</span> — call first, and after any denial. Reports auth mode, your scopes, rate budget, and every tool.</li>
+            <li><code>search_tickets</code> <span class="tag grey" style="font-size:10px">read</span> — find tickets by status, email, or keyword. Empty = no match, not a broken server.</li>
+            <li><code>get_ticket</code> <span class="tag grey" style="font-size:10px">read</span> — fetch one ticket by id including comments and attribution.</li>
+            <li><code>create_ticket</code> <span class="tag coral" style="font-size:10px">write</span> — <strong>always pass <code>requester_email</code></strong> or the service account owns it.</li>
+            <li><code>add_comment</code> <span class="tag coral" style="font-size:10px">write</span> — comment on a known ticket id. Pass <code>author</code> or the comment is owned by the service account.</li>
+            <li><code>close_ticket</code> <span class="tag coral" style="font-size:10px">write</span> — resolve a ticket. Idempotent — calling twice returns <code>alreadyClosed:true</code>.</li>
+            <li><code>list_schemas</code> <span class="tag grey" style="font-size:10px">read</span> — step 1 of schema discovery. There is no <code>query_tickets</code> tool.</li>
+            <li><code>get_schema</code> <span class="tag grey" style="font-size:10px">read</span> — fields and filterable keys for one schema.</li>
+            <li><code>run_query</code> <span class="tag grey" style="font-size:10px">read</span> — the one query tool. Pass schema from list_schemas.</li>
+            <li><code>lookup_customer</code> <span class="tag amber" style="font-size:10px">pii</span> — phone stays REDACTED without the <code>pii</code> scope.</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h4>Resources</h4>
+          <ul class="checklist">
+            <li><code>ticket://{id}</code> — one ticket by id. Same auth as get_ticket.</li>
+            <li><code>tickets://open</code> — live open ticket list (top 25). Same auth as search_tickets.</li>
+            <li><code>schema://{name}</code> — query schema shape. Same auth as get_schema.</li>
+          </ul>
+          <p class="muted">Call <code>resources/list</code> to browse — you don't need to know a URI ahead of time.</p>
+        </div>
+        <div class="panel">
+          <h4>MCP Prompts</h4>
+          <ul class="checklist">
+            <li><code>search-open-tickets</code> — find scars in live data.</li>
+            <li><code>attribution-scar</code> — create without requester_email, then explain what broke.</li>
+            <li><code>schema-discovery</code> — list_schemas → get_schema → run_query walkthrough.</li>
+            <li><code>close-ticket-flow</code> — add_comment then close_ticket in sequence.</li>
+            <li><code>diagnose-server</code> — describe_server, auth mode, available tools.</li>
           </ul>
         </div>
       </div>
 
-      <div id="help-tools" class="pane" data-group="help">
-        <div class="panel" id="tools">
-          <h4>10 purpose-built tools</h4>
-          <p>No <code>request(path, method)</code>. Each tool name is a verb + noun that says when to use it.</p>
-          <ul class="checklist">
-            <li><code>describe_server</code> — call first, and after any denial. Reports auth mode, your scopes, rate budget.</li>
-            <li><code>search_tickets</code> — find tickets by status, email, or keyword.</li>
-            <li><code>get_ticket</code> — fetch one ticket by id including comments.</li>
-            <li><code>create_ticket</code> — always pass <code>requester_email</code> or the service account owns it.</li>
-            <li><code>add_comment</code> — comment on a known ticket id.</li>
-            <li><code>close_ticket</code> — resolve a ticket. Optional resolution note becomes the last comment.</li>
-            <li><code>list_schemas</code> — discover queryable schemas before calling run_query.</li>
-            <li><code>get_schema</code> — fields and filters for one schema.</li>
-            <li><code>run_query</code> — the one query tool. Pass schema from list_schemas.</li>
-            <li><code>lookup_customer</code> — phone is PII; redacted without the <code>pii</code> scope.</li>
-          </ul>
+      <!-- ── Lessons ─────────────────────────────────────────────────── -->
+      <div id="help-lessons" class="pane" data-group="help">
+        <div class="panel">
+          <h4>Lesson 1 — Tool naming is the interface</h4>
+          <p><code>search_tickets</code> · <code>get_ticket</code> · <code>create_ticket</code> — each name says the action and the noun. Compare to the first draft: <code>query_tickets_by_status</code> / <code>query_tickets_by_requester</code> / <code>query_open_tickets</code>. Technically correct. Model picked wrong every other call.</p>
+        </div>
+        <div class="panel">
+          <h4>Lesson 2 — The silent 0-tools failure</h4>
+          <p><code>tools/list</code> returns 0 tools with no error when the server starts but the <code>cwd</code> is wrong or <code>MCP_MODE</code> is missing. Nothing fails. Nothing warns. The tool list is just empty. Use <code>npx</code> — never an absolute path.</p>
+        </div>
+        <div class="panel">
+          <h4>Lesson 3 — The attribution scar</h4>
+          <p><code>create_ticket</code> without <code>requester_email</code> returns HTTP 201. The ticket exists. The API call "succeeded." But the service account owns it and every reply goes to the bot, not the customer. <strong>A tool isn't done when the API call succeeds — it's done when the next thing that happens is right.</strong></p>
+        </div>
+        <div class="panel">
+          <h4>Lesson 4 — Schema discovery over tool proliferation</h4>
+          <p><code>list_schemas → get_schema → run_query</code> replaces <code>query_tickets</code> / <code>query_assets</code> / <code>query_with_filter</code> and every near-identical cousin. The model discovers the shape at runtime. The server exposes one tool.</p>
+        </div>
+        <div class="panel">
+          <h4>Lesson 5 — The protocol doesn't say who is allowed to call it</h4>
+          <p>MCP describes tools. It doesn't describe permissions. This server invents its own: off / write / all auth modes, scoped API keys, per-tool gates, and refusals that name the required scope and where to get one — so the model asks instead of looping.</p>
+        </div>
+        <div class="panel">
+          <h4>Lesson 6 — Laptop paths don't survive a container boundary</h4>
+          <p>Native stdio uses an absolute local <code>cwd</code>. Podman and Code Engine use the image — there is no local filesystem. The path that worked on your laptop is meaningless inside the container.</p>
+        </div>
+        <div class="panel">
+          <h4>Lesson 7 — Error messages are part of the tool contract</h4>
+          <p>A bare <code>403 Forbidden</code> makes the model retry in a loop and eventually tell the user the server is "unavailable." A refusal that names the required scope and where to get a key makes the model <em>ask</em> instead. See Demo 12 (Naive mode).</p>
         </div>
       </div>
     `,

@@ -367,6 +367,16 @@ export async function startHttp({ store, security }) {
     res.redirect("/admin#adm-security");
   });
 
+  app.post("/admin/naive-mode", requireAdmin, (req, res) => {
+    const enabled = body(req, "enabled") === "1" || req.body?.enabled === true;
+    security.setNaiveMode(enabled);
+    if (wantsJson(req)) {
+      res.json({ ok: true, security: security.snapshot() });
+      return;
+    }
+    res.redirect("/admin#adm-security");
+  });
+
   app.post("/admin/tool-gate", requireAdmin, (req, res) => {
     const toolName = body(req, "tool");
     const enabled = body(req, "enabled") !== "0";
@@ -409,6 +419,38 @@ export async function startHttp({ store, security }) {
       return;
     }
     res.redirect("/admin");
+  });
+
+  app.post("/admin/tickets/:id/delete", requireAdmin, (req, res) => {
+    const ok = store.deleteTicket(req.params.id);
+    if (wantsJson(req)) {
+      res.status(ok ? 200 : 404).json({ ok });
+      return;
+    }
+    res.redirect("/admin#adm-data");
+  });
+
+  app.post("/admin/tickets/:id/edit", requireAdmin, (req, res) => {
+    const { subject, requester_email, status } = req.body || {};
+    const ticket = store.editTicket(req.params.id, {
+      subject: subject || undefined,
+      requester_email: requester_email || undefined,
+      status: status || undefined,
+    });
+    if (wantsJson(req)) {
+      res.status(ticket ? 200 : 404).json({ ok: Boolean(ticket), ticket });
+      return;
+    }
+    res.redirect("/admin#adm-data");
+  });
+
+  app.post("/admin/reset", requireAdmin, (req, res) => {
+    store.reset();
+    if (wantsJson(req)) {
+      res.json({ ok: true, message: "Factory reset complete — seed tickets restored." });
+      return;
+    }
+    res.redirect("/admin#adm-data");
   });
 
   app.post("/admin/keys/revoke", requireAdmin, (req, res) => {

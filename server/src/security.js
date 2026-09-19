@@ -128,6 +128,12 @@ export function createSecurity({ log } = {}) {
     lastDeniedAt: "",
     /** Full-trace audit mode — disabled by default, togglable from /admin. */
     auditMode: false,
+    /**
+     * Naive mode — demo toggle that strips the rich denial payload down to a
+     * bare 403 so the audience can see a model retry in a loop vs ask for a key.
+     * Off by default. Only affects anonymous callers on write/pii tools.
+     */
+    naiveMode: false,
   };
 
   /**
@@ -450,6 +456,7 @@ export function createSecurity({ log } = {}) {
         /** Per-tool counters: name → { success, error, denied }. */
         toolCounters: Object.fromEntries(toolCounters),
         auditMode: state.auditMode,
+        naiveMode: state.naiveMode,
         errorLog: errorLog.slice(0, 20),
         callTrace: callTrace.slice(0, 50),
       };
@@ -509,6 +516,18 @@ export function createSecurity({ log } = {}) {
       state.auditMode = Boolean(enabled);
       if (state.auditMode) callTrace.length = 0; // start fresh
       auditFn({ tool: "admin.audit", outcome: `audit mode ${state.auditMode ? "on" : "off"}` });
+      return this.snapshot();
+    },
+
+    /**
+     * Toggle naive mode for demo purposes.
+     * When on, anonymous denials on write/pii tools return a bare 403 with no
+     * actionable guidance — illustrating what happens when error messages don't
+     * name the required scope or where to get a credential.
+     */
+    setNaiveMode(enabled) {
+      state.naiveMode = Boolean(enabled);
+      auditFn({ tool: "admin.naive", outcome: `naive mode ${state.naiveMode ? "on" : "off"}` });
       return this.snapshot();
     },
 
@@ -602,6 +621,16 @@ export function createSecurity({ log } = {}) {
       const needed = requiredScope(toolName);
       if (authRequiredFor(toolName)) {
         if (principal.type === "anonymous") {
+          // Naive mode: return a bare 403 with no guidance so the demo audience
+          // can watch the model loop vs the hardened path where it asks for a key.
+          if (state.naiveMode) {
+            return deny(
+              principal,
+              toolName,
+              "forbidden",
+              { status: 403, reason: "anonymous (naive mode)" },
+            );
+          }
           return deny(
             principal,
             toolName,

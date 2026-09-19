@@ -37,6 +37,8 @@ MCP Server  (npm: mcp-ticket-demo)              ← what the extension manages
 └── Podman image     — same Dockerfile as Code Engine deployment
 ```
 
+![Extension setup panel — connection switcher and server controls](../docs/assets/screenshots/ext-setup.png)
+
 ---
 
 ## Architecture
@@ -404,30 +406,54 @@ Switch mode from   /admin → Auth Mode  or summitMcp.authMode setting.
 
 ## Send-to-chat prompts
 
-The sidebar and panel include five one-click prompts that fire directly
+The sidebar and panel include one-click prompts that fire directly
 into the active LLM chat (VS Code Copilot, IBM Bob, Cursor, Windsurf Cascade).
 Clipboard fallback is automatic when the chat API is not exposed.
 
 ```
-1. Search open tickets
-   "Search open tickets, then tell me who owns each one."
+1.  Discover the server
+    "Call describe_server. Tell me the auth mode, my scopes,
+     rate-limit budget, and which tools need a credential."
 
-2. create_ticket without requester  ← the attribution-scar lesson
-   "Create a ticket … do not pass requester_email.
-    Then tell me who owns it."
+2.  Search open tickets
+    "Search open tickets, then tell me who owns each one."
 
-3. create_ticket with requester
-   "Create a ticket for ada@example.com …
-    Then search tickets owned by ada@example.com."
+3.  create_ticket without requester  ← the attribution-scar lesson
+    "Create a ticket … do not pass requester_email.
+     Then tell me who owns it."
 
-4. list_schemas → run_query  ← the schema-discovery lesson
-   "List schemas, get the tickets schema,
-    then run_query on tickets filtered to status=open."
+4.  create_ticket with requester
+    "Create a ticket for ada@example.com …
+     Then search tickets owned by ada@example.com."
 
-5. 0 tools discovered  ← the silent-failure lesson
-   "If tools/list is empty, tell me why — cwd, MCP_MODE,
-    native stdio vs Podman vs Code Engine — and what to try."
+5.  add_comment on a ticket
+    "Search open tickets, pick one, then add a comment as
+     support@example.com explaining what you found."
+
+6.  close_ticket
+    "Search open tickets, pick one, then close_ticket with a
+     short resolution note. Tell me the new status and resolved_at."
+
+7.  list_schemas → run_query  ← the schema-discovery lesson
+    "List schemas, get the tickets schema,
+     then run_query on tickets filtered to status=open."
+
+8.  PII gating on lookup_customer
+    "Look up the customer record for ada@example.com.
+     Is the phone number visible? Explain why or why not."
+
+9.  Auth modes & scopes
+    "Call describe_server and tell me the current auth mode,
+     which tools are locked, and what scope each write tool requires."
+
+10. 0 tools discovered  ← the silent-failure lesson
+    "If tools/list is empty, tell me why — cwd, MCP_MODE,
+     native stdio vs Podman vs Code Engine — and what to try."
 ```
+
+![Chat tab — one-click prompts firing into IBM Bob](../docs/assets/screenshots/ext-chat-listtickets.png)
+
+![Chat tab — AI creates tickets from a freeform prompt](../docs/assets/screenshots/ext-createdata_via_ai.png)
 
 ### Chat delivery chain
 
@@ -466,7 +492,11 @@ tools/list              At least 1 tool returned (the silent failure)
 search_tickets          Real call returns TCK- ids
 ```
 
+![Diagnostics tab — all steps passing](../docs/assets/screenshots/ext-diagnostic.png)
+
 **MCP Demo: Run MCP CRUD test** (panel → MCP Test tab) creates a ticket, reads it, comments, closes it, then searches with `status=all`. It scores the tool JSON (`ok`, `ticket.id`, `status`), not HTTP 200.
+
+![MCP Test tab — full CRUD cycle passing](../docs/assets/screenshots/ext-crudtest.png)
 
 ---
 
@@ -503,6 +533,8 @@ Refresh                                  Reload the Resources tree
 ---
 
 ## Settings
+
+![Settings tab — probe target, URLs, Podman config, API key](../docs/assets/screenshots/ext-settings.png)
 
 ```
 summitMcp.probeTarget      auto | native-http | podman | remote

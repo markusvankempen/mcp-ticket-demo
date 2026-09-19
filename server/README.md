@@ -72,6 +72,8 @@ MCP_MODE=http   node src/index.js     ← Express: /mcp /sse /health /test /admi
 └──────────────────┴───────────┴────────────────────────────────────────────┘
 ```
 
+![/tools — tool inventory showing all 10 tools, scopes, and live auth status](../docs/assets/screenshots/tools.png)
+
 ### Resources and prompts
 
 ```
@@ -138,6 +140,10 @@ MCP_MODE=http npx mcp-ticket-demo
 | `GET  /log`    | Live tool counters, call trace, error log       |
 | `GET  /tools`  | Tool inventory page                             |
 | `GET  /help`   | Guides and architecture reference               |
+
+![/health — HTML dashboard showing status, transport, tool count, auth mode, and raw JSON](../docs/assets/screenshots/health-html.png)
+
+![/test — read-only smoke test with all four steps passing](../docs/assets/screenshots/test.png)
 
 ---
 
@@ -362,6 +368,11 @@ broadcasts `notifications/tools/list_changed` to connected SSE and Streamable HT
 | `/tools` | Tool inventory with current scope enforcement |
 | `/test` | Read-only smoke as JSON at `/test?format=json`. Writes: `/test?write=1` after admin sign-in |
 | `/health` | Process liveness (JSON at `/health?format=json`). `cwd` only on localhost |
+| `/help` | Guides and architecture reference — Quick start, Security, Pages, Tools tabs |
+
+![/admin — sign-in page (laptop default: demo / demo)](../docs/assets/screenshots/admin-login.png)
+
+![/help — built-in docs page with Quick start, Security, Pages, and Tools tabs](../docs/assets/screenshots/help.png)
 
 ### Lab panel (generate data & traffic)
 
@@ -438,6 +449,12 @@ Key extension features:
   with `status=all`) against the HTTP server, scoring the tool payload (not just HTTP 200).
 - **Diagnose** — checks workspace, config files, `/health`, `/test`, `tools/list`, and a
   live `search_tickets` call.
+
+![IBM Bob MCP settings — mcp-ticket-demo connected and enabled](../docs/assets/screenshots/Ide-mcp-enabled.png)
+
+![Extension diagnostics panel — all steps passing](../docs/assets/screenshots/ext-diagnostic.png)
+
+![Extension MCP Test tab — full CRUD cycle passing](../docs/assets/screenshots/ext-crudtest.png)
 
 ---
 
