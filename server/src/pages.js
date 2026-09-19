@@ -320,16 +320,62 @@ export function testPage(result, host = "127.0.0.1:8787") {
     `<li class="${s.ok ? "" : "fail"}"><strong>${escapeHtml(s.name)}</strong> — ${escapeHtml(s.detail)}</li>`
   ).join("");
 
+  // helper so each block stays readable
+  const mcp = (id, name, args) =>
+    `curl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{"jsonrpc":"2.0","id":${id},"method":"tools/call","params":{"name":"${name}","arguments":${JSON.stringify(args)}}}' | jq .`;
+
+  const section = (title) => `<h4 style="margin:20px 0 6px;font-size:13px;color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:4px">${title}</h4>`;
+
   const curlCmds = [
-    [`# Liveness\ncurl -s '${base}/health?format=json' | jq .`],
-    [`# Smoke test\ncurl -s '${base}/test?format=json' | jq .`],
-    [`# List tools\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | jq .`],
-    [`# Search tickets\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search_tickets","arguments":{"status":"open","limit":5}}}' | jq .`],
-    [`# Create ticket (with owner)\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"create_ticket","arguments":{"subject":"Test","body":"From curl.","requester_email":"markus.van.kempen@gmail.com"}}}' | jq .`],
-    [`# Create ticket WITHOUT email → service-account scar\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"create_ticket","arguments":{"subject":"Scar demo","body":"No email — bot owns it."}}}' | jq .`],
-    [`# Get ticket\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -d '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"get_ticket","arguments":{"ticket_id":"TCK-1001"}}}' | jq .`],
-    [`# Authenticated call (replace KEY)\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Authorization: Bearer mcpk_YOUR_KEY' \\\n  -d '{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"lookup_customer","arguments":{"email":"ada@example.com"}}}' | jq .`],
-  ].map(([c]) => curlBlock(c)).join("");
+    section("Server endpoints"),
+    curlBlock(`# Liveness — is the process alive?\ncurl -s '${base}/health?format=json' | jq .`),
+    curlBlock(`# Smoke test — do tools actually work?\ncurl -s '${base}/test?format=json' | jq .`),
+
+    section("Discovery"),
+    curlBlock(`# List all tools (MCP protocol)\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | jq .`),
+    curlBlock(`# describe_server — auth mode, your scopes, rate limit, every tool\n${mcp(2, "describe_server", {})}`),
+
+    section("Read tools"),
+    curlBlock(`# search_tickets — open tickets (default)\n${mcp(3, "search_tickets", { status: "open", limit: 5 })}`),
+    curlBlock(`# search_tickets — all statuses\n${mcp(4, "search_tickets", { status: "all", limit: 10 })}`),
+    curlBlock(`# search_tickets — by requester email\n${mcp(5, "search_tickets", { requester_email: "ada@example.com", status: "all" })}`),
+    curlBlock(`# search_tickets — keyword filter\n${mcp(6, "search_tickets", { query: "hostname", status: "all" })}`),
+    curlBlock(`# get_ticket — fetch one ticket by id\n${mcp(7, "get_ticket", { ticket_id: "TCK-1001" })}`),
+
+    section("Write tools"),
+    curlBlock(`# create_ticket WITH requester_email (correct)\n${mcp(8, "create_ticket", { subject: "Test from curl", body: "Sent via terminal.", requester_email: "ada@example.com" })}`),
+    curlBlock(`# create_ticket WITHOUT requester_email → attribution scar\n# 201 succeeds but service account owns the ticket\n${mcp(9, "create_ticket", { subject: "Scar demo", body: "No email — bot owns it." })}`),
+    curlBlock(`# add_comment — comment on a known ticket\n${mcp(10, "add_comment", { ticket_id: "TCK-1001", body: "Confirmed from the terminal.", author: "support@example.com" })}`),
+    curlBlock(`# close_ticket — resolve with a resolution note\n${mcp(11, "close_ticket", { ticket_id: "TCK-1001", resolution: "Fixed. Closing.", closed_by: "support@example.com" })}`),
+
+    section("Schema discovery"),
+    curlBlock(`# list_schemas — step 1: discover available schemas\n${mcp(12, "list_schemas", {})}`),
+    curlBlock(`# get_schema — step 2: fields and filterable keys\n${mcp(13, "get_schema", { name: "tickets" })}`),
+    curlBlock(`# run_query — step 3: query with discovered shape\n${mcp(14, "run_query", { schema: "tickets", filter: { status: "open" }, limit: 5 })}`),
+    curlBlock(`# run_query — customers schema\n${mcp(15, "run_query", { schema: "customers", limit: 10 })}`),
+    curlBlock(`# run_query — assets schema\n${mcp(16, "run_query", { schema: "assets", limit: 10 })}`),
+
+    section("PII-gated tool"),
+    curlBlock(`# lookup_customer — phone REDACTED without pii scope\n${mcp(17, "lookup_customer", { email: "ada@example.com" })}`),
+    curlBlock(`# lookup_customer — with pii-scoped key (replace KEY)\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -H 'Authorization: Bearer mcpk_YOUR_PII_KEY' \\\n  -d '{"jsonrpc":"2.0","id":18,"method":"tools/call","params":{"name":"lookup_customer","arguments":{"email":"ada@example.com"}}}' | jq .`),
+
+    section("Resources"),
+    curlBlock(`# resources/list — enumerate all addressable resources\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{"jsonrpc":"2.0","id":19,"method":"resources/list","params":{}}' | jq .`),
+    curlBlock(`# resources/read — read one ticket by URI\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{"jsonrpc":"2.0","id":20,"method":"resources/read","params":{"uri":"ticket://TCK-1001"}}' | jq .`),
+    curlBlock(`# resources/read — live open ticket list\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{"jsonrpc":"2.0","id":21,"method":"resources/read","params":{"uri":"tickets://open"}}' | jq .`),
+    curlBlock(`# resources/read — schema shape\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{"jsonrpc":"2.0","id":22,"method":"resources/read","params":{"uri":"schema://tickets"}}' | jq .`),
+
+    section("Prompts"),
+    curlBlock(`# prompts/list — enumerate MCP prompts\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{"jsonrpc":"2.0","id":23,"method":"prompts/list","params":{}}' | jq .`),
+    curlBlock(`# prompts/get — attribution-scar prompt\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{"jsonrpc":"2.0","id":24,"method":"prompts/get","params":{"name":"attribution-scar"}}' | jq .`),
+
+    section("Authenticated calls (auth mode: write or all)"),
+    curlBlock(`# Set auth mode to write first:\n# curl -s -b cookie.txt -X POST '${base}/admin/security' \\\n#   -d 'authMode=write'\n\n# create_ticket with API key (replace KEY)\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -H 'Authorization: Bearer mcpk_YOUR_KEY' \\\n  -d '{"jsonrpc":"2.0","id":25,"method":"tools/call","params":{"name":"create_ticket","arguments":{"subject":"Authenticated","body":"Sent with a key.","requester_email":"ada@example.com"}}}' | jq .`),
+    curlBlock(`# Denied call — no credential (shows actionable error)\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{"jsonrpc":"2.0","id":26,"method":"tools/call","params":{"name":"create_ticket","arguments":{"subject":"Will fail","body":"No key.","requester_email":"ada@example.com"}}}' | jq .`),
+
+    section("Naive mode demo (Demo 12)"),
+    curlBlock(`# 1. Login and get session cookie\ncurl -s -c /tmp/mcp_cookies.txt -X POST '${base}/admin/login' \\\n  -d 'username=demo&password=demo'\n\n# 2. Set auth mode to write\ncurl -s -b /tmp/mcp_cookies.txt -X POST '${base}/admin/security' \\\n  -d 'authMode=write'\n\n# 3. Enable naive mode\ncurl -s -b /tmp/mcp_cookies.txt -X POST '${base}/admin/naive-mode' \\\n  -d 'enabled=1'\n\n# 4. Call create_ticket — observe bare 403\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{"jsonrpc":"2.0","id":27,"method":"tools/call","params":{"name":"create_ticket","arguments":{"subject":"Naive test","body":"Bare 403.","requester_email":"ada@example.com"}}}' | jq .\n\n# 5. Disable naive mode — same call returns actionable error\ncurl -s -b /tmp/mcp_cookies.txt -X POST '${base}/admin/naive-mode' \\\n  -d 'enabled=0'\n\n# 6. Reset auth mode\ncurl -s -b /tmp/mcp_cookies.txt -X POST '${base}/admin/security' \\\n  -d 'authMode=off'`),
+  ].join("");
 
   return chrome({
     title: "test · mcp-ticket-demo",
@@ -548,6 +594,29 @@ function labPanel() {
       </div>
     </div>
     <p class="note">After running, open <a href="/log">Log</a> to see counters, the error log, and the call trace.</p>
+
+    <h3 style="margin-top:24px">Server process</h3>
+    <p class="muted" style="font-size:12px;margin-bottom:10px">
+      <strong>Restart</strong> re-execs the same Node process with the same env — in-memory tickets are lost and the seed is restored.
+      Only works when the server was started with <code>node src/index.js</code> or <code>npx mcp-ticket-demo</code> directly (not inside a container or Code Engine).
+      <strong>Stop</strong> exits the process entirely.
+    </p>
+    <div class="grid2">
+      <div class="panel">
+        <h4>↺ Restart server</h4>
+        <p>Re-execs this process. Redirects to <a href="/health">/health</a> after 3 s. In-memory state is cleared.</p>
+        <form method="post" action="/admin/server/restart" onsubmit="return confirm('Restart the server? In-memory tickets will be lost.')">
+          <button type="submit">Restart</button>
+        </form>
+      </div>
+      <div class="panel panel-warning">
+        <h4>⏹ Stop server</h4>
+        <p>Calls <code>process.exit(0)</code>. The process will not restart unless your terminal or process manager relaunches it.</p>
+        <form method="post" action="/admin/server/stop" onsubmit="return confirm('Stop the server? It will not restart automatically.')">
+          <button class="danger" type="submit">Stop</button>
+        </form>
+      </div>
+    </div>
   </div>`;
 }
 

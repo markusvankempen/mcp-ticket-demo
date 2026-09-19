@@ -1,4 +1,5 @@
 import express from "express";
+import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -451,6 +452,51 @@ export async function startHttp({ store, security }) {
       return;
     }
     res.redirect("/admin#adm-data");
+  });
+
+  app.post("/admin/server/stop", requireAdmin, (req, res) => {
+    const msg = "Server stopped by admin. Restart it from your terminal: MCP_MODE=http npx mcp-ticket-demo";
+    if (wantsJson(req)) {
+      res.json({ ok: true, message: msg });
+    } else {
+      res.type("html").send(`<!doctype html><html><head><meta charset="utf-8"><title>Stopped</title>
+        <style>body{font-family:system-ui,sans-serif;padding:40px;background:#f3f7f1;color:#10252a}
+        pre{background:#fff;border:1px solid #cddbd3;padding:12px;border-radius:8px;font-size:13px}</style></head>
+        <body><h2>Server stopped.</h2>
+        <p>Restart from your terminal:</p>
+        <pre>MCP_MODE=http npx mcp-ticket-demo</pre>
+        <p style="color:#557176;font-size:13px">Or use <code>npm run http</code> if you cloned the repo.</p>
+        </body></html>`);
+    }
+    // Flush the response before exiting
+    res.once("finish", () => process.exit(0));
+    res.end();
+  });
+
+  app.post("/admin/server/restart", requireAdmin, (req, res) => {
+    if (wantsJson(req)) {
+      res.json({ ok: true, message: "Restarting…" });
+    } else {
+      res.type("html").send(`<!doctype html><html><head><meta charset="utf-8">
+        <meta http-equiv="refresh" content="3;url=/health">
+        <title>Restarting…</title>
+        <style>body{font-family:system-ui,sans-serif;padding:40px;background:#f3f7f1;color:#10252a}</style></head>
+        <body><h2>Restarting…</h2>
+        <p>Redirecting to <a href="/health">/health</a> in 3 seconds.</p>
+        </body></html>`);
+    }
+    res.once("finish", () => {
+      // Re-exec the same Node.js process with the same args and env.
+      // Works when started via: node src/index.js  or  npx mcp-ticket-demo
+      const child = spawn(process.execPath, process.argv.slice(1), {
+        env: process.env,
+        stdio: "inherit",
+        detached: true,
+      });
+      child.unref();
+      process.exit(0);
+    });
+    res.end();
   });
 
   app.post("/admin/keys/revoke", requireAdmin, (req, res) => {
