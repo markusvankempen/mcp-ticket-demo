@@ -1,4 +1,4 @@
-# MCP Ticket Demo — Server, Tools & Auth
+# LF MCP Demo
 
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/MarkusvanKempen.lf-mcp-summit-demo?style=for-the-badge&logo=visualstudiocode&label=VS%20Code)](https://marketplace.visualstudio.com/items?itemName=MarkusvanKempen.lf-mcp-summit-demo)
 [![Open VSX](https://img.shields.io/open-vsx/v/markusvankempen/lf-mcp-summit-demo?style=for-the-badge&label=Open%20VSX)](https://open-vsx.org/extension/markusvankempen/lf-mcp-summit-demo)
@@ -9,29 +9,32 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![MCP](https://img.shields.io/badge/MCP-Protocol-5A29E4?style=for-the-badge)](https://modelcontextprotocol.io/)
 
-A **fully working MCP server** you can run in seconds — with 10 real tools, three auth modes, API key management, per-tool gates, rate limiting, and a live observability dashboard. Use it to learn MCP, test your IDE integration, or as a reference implementation.
+A **control plane and test harness** for the [mcp-ticket-demo](https://www.npmjs.com/package/mcp-ticket-demo) MCP server. The extension manages the server lifecycle, writes IDE config, runs a step-by-step diagnostic, scores tool calls end-to-end, and fires canned prompts directly into your LLM chat — all from a sidebar in VS Code, IBM Bob, Cursor, or Windsurf.
 
-Works with **VS Code (GitHub Copilot)**, **IBM Bob**, **Cursor**, **Windsurf**, and **Cline** — install the extension and one click writes the correct `mcp.json` for all four IDEs at once.
+The bundled MCP server (`mcp-ticket-demo`) is a **fully functional support-ticketing backend** with 10 real tools, three auth modes, API key management, per-tool gates, rate limiting, and a live `/admin` dashboard. It runs as a local stdio child process, a local HTTP server, a Podman container, or a shared Code Engine endpoint — the extension switches between them without touching a config file by hand.
 
-> Companion repo for [**MCP as a Platform**](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401) · MCP Dev Summit Toronto · Oct 2026
+> Companion to [**MCP as a Platform**](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401) · MCP Dev Summit Toronto · Oct 2026 — every lesson in the talk is a live, reproducible demo in this repo. · [Talk slides](https://markusvankempen.github.io/linuxfoundation-mcp-dev-summit/#1)
 
 ---
 
 ## What is included
 
 ```
-Extension (VS Code / Bob / Cursor / Windsurf)
-└── Control plane sidebar
-    ├── Setup & Diagnostics panel
-    ├── Resources tree
-    ├── Status-bar quick menu
-    └── Send-to-chat prompts
+Extension (VS Code / Bob / Cursor / Windsurf)   ← control plane
+├── Setup & Diagnostics panel
+│     ├── Step-by-step diagnostic (workspace → config → health → tool call)
+│     ├── MCP CRUD test  (create → get → comment → close → search)
+│     ├── Connection switcher  (stdio / HTTP / Podman / Code Engine)
+│     └── Send-to-chat prompts  (fire lesson scenarios into the active LLM)
+├── Resources tree  (server status, connection mode, quick links)
+└── Status-bar quick menu
 
-MCP Server  (pulled from npm: mcp-ticket-demo)
+MCP Server  (npm: mcp-ticket-demo)              ← what the extension manages
 ├── 10 tools · 3 resources · 5 prompts
-├── stdio transport  — local child process, no port
-├── HTTP transport  — /sse  /mcp  /health  /test  /admin
-└── Optional Podman image  — same Dockerfile as Code Engine
+├── Auth  — off / write / all · API key management · per-tool gates
+├── stdio transport  — local child process, no port, secrets in env
+├── HTTP transport   — POST /mcp  GET /sse  /health  /test  /admin  /tools
+└── Podman image     — same Dockerfile as Code Engine deployment
 ```
 
 ---
@@ -525,6 +528,10 @@ summitMcp.apiKey           API key issued on /admin → API Keys.
                            Sent as Authorization: Bearer over HTTP;
                            as MCP_API_KEY to stdio / Podman processes.
 
+summitMcp.autoConnectStdio true (default)
+                           Write native stdio into mcp.json on activate
+                           if missing. Never overwrites HTTP/SSE.
+
 summitMcp.authMode         off | write | all
                            Auth mode the local server boots with.
 ```
@@ -614,6 +621,7 @@ Lesson 4 — Laptop paths don't survive a container boundary
 **Author:** Markus van Kempen ·
 [markus.van.kempen@gmail.com](mailto:markus.van.kempen@gmail.com) ·
 [markusvankempen.github.io](https://markusvankempen.github.io/) ·
-[MCP Dev Summit Talk](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401)
+[MCP Dev Summit Talk](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401) ·
+[Talk slides](https://markusvankempen.github.io/linuxfoundation-mcp-dev-summit/#1)
 
 *Personal open-source demo. Not an IBM product.*

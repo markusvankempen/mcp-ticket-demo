@@ -1,7 +1,7 @@
 const vscode = require("vscode");
 const {
   discover, writeLocal, writeRemote, writePodmanStdio, writePodmanHttp,
-  settings, httpBase, setContext,
+  planAutoConnect, settings, httpBase, setContext,
 } = require("./config");
 const { runDiagnostics, runMcpCrud } = require("./diagnose");
 const { getPanel } = require("./panel");
@@ -96,6 +96,7 @@ async function activate(context) {
   statusBar.command = "summitMcp.showMenu";
   context.subscriptions.push(statusBar);
   refreshStatusBar();
+  void maybeAutoConnectStdio();
 
   const register = (id, fn) => context.subscriptions.push(vscode.commands.registerCommand(id, fn));
 
@@ -438,6 +439,38 @@ async function activate(context) {
     await vscode.commands.executeCommand("workbench.view.extension.summitMcp");
   } catch {
     // Some hosts don't expose the view container command.
+  }
+}
+
+async function maybeAutoConnectStdio() {
+  const info = discover();
+  const plan = planAutoConnect(info);
+  if (!plan.write) {
+    if (plan.reason === "already-connected") logAll("Auto-connect: stdio already in .vscode/mcp.json");
+    else if (plan.reason === "opt-out") logAll("Auto-connect: skipped (summitMcp.autoConnectStdio is off)");
+    else if (plan.reason === "remote-entry") logAll("Auto-connect: skipped (mcp-ticket-demo is HTTP/SSE)");
+    return;
+  }
+
+  writeLocal();
+  refreshUi();
+  const detail = plan.reason === "fix-node-path"
+    ? "Updated mcp-ticket-demo stdio to use a real Node binary (not Code Helper)."
+    : "Wrote mcp-ticket-demo stdio into .vscode/mcp.json (and Cursor / Bob / Windsurf).";
+  logAll(`Auto-connect: ${detail}`);
+
+  const choice = await vscode.window.showInformationMessage(
+    `${detail} Reload the window so Copilot / Chat picks it up.`,
+    "Reload window",
+    "Don't auto-connect",
+  );
+  if (choice === "Reload window") {
+    await vscode.commands.executeCommand("workbench.action.reloadWindow");
+    return;
+  }
+  if (choice === "Don't auto-connect") {
+    await vscode.workspace.getConfiguration("summitMcp").update("autoConnectStdio", false, vscode.ConfigurationTarget.Workspace);
+    logAll("Auto-connect: summitMcp.autoConnectStdio set to false for this workspace");
   }
 }
 

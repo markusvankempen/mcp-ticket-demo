@@ -9,10 +9,13 @@
 [![GitHub](https://img.shields.io/badge/GitHub-mcp--ticket--demo-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/markusvankempen/mcp-ticket-demo)
 [![Linux Foundation](https://img.shields.io/badge/Linux_Foundation-MCP_Dev_Summit_Toronto-003366?style=for-the-badge)](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401)
 
-A fully-featured MCP server for teaching real-world MCP patterns —
-support tickets, schema discovery, auth, PII gating, and observable traffic.
+A **fully-featured MCP server** that exposes a realistic support-ticketing system over the
+Model Context Protocol — 10 tools, schema discovery, three auth modes, API key management,
+per-tool gates, rate limiting, PII gating, and a live `/admin` + `/log` dashboard.
 
-Built for the talk **"MCP as a Platform: What I Learned Building a Portfolio of MCP Servers"**
+Runs as a local stdio child process, a local HTTP server, a Podman container, or a shared
+Code Engine endpoint. Every pattern in the server is a reproducible lesson from the talk
+**["MCP as a Platform"](https://markusvankempen.github.io/linuxfoundation-mcp-dev-summit/#1)**
 at [MCP Dev Summit Toronto 2026](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401).
 
 ```
@@ -377,33 +380,54 @@ without needing an LLM:
 ## What this teaches
 
 ```
-Lesson 1 — The silent tool-count failure
+Lesson 1 — Tool naming is the interface
+  search_tickets · get_ticket · create_ticket — each name says
+  the action and the noun. Compare to the first draft:
+  query_tickets_by_status / query_tickets_by_requester / query_open_tickets.
+  Technically correct. Model picked wrong every other call.
+
+Lesson 2 — The silent tool-count failure
   tools/list returns 0 tools with no error when the server starts
   but the cwd is wrong or MCP_MODE is missing. Nothing fails.
   Nothing warns. The tool list is just empty.
 
-Lesson 2 — Attribution scar
+Lesson 3 — Attribution scar
   create_ticket without requester_email returns HTTP 201.
   The API call "succeeded". But the service account owns the
   ticket and every reply goes to the bot, not the customer.
+  A tool isn't done when the API call succeeds — it's done
+  when the next thing that happens is right.
 
-Lesson 3 — Schema discovery over tool proliferation
+Lesson 4 — Schema discovery over tool proliferation
   list_schemas → get_schema → run_query replaces a pile of
   query_tickets / query_assets / query_with_filter tools.
   The model discovers the shape; the server exposes one tool.
 
-Lesson 4 — Laptop paths don't survive a container boundary
+Lesson 5 — The protocol doesn't say who is allowed to call it
+  MCP describes tools. It doesn't describe permission. This server
+  invents its own: off / write / all auth modes, scoped API keys,
+  and refusals that name the required scope and where to get one
+  so the model asks instead of looping.
+
+Lesson 6 — Laptop paths don't survive a container boundary
   Native stdio uses an absolute local cwd. Podman and Code
   Engine use the image. The path that worked on your laptop
-  is meaningless in the container.
+  is meaningless in the container. And four IDE config files
+  (.vscode/ .cursor/ .bob/ .windsurf/) all drift independently
+  once a URL changes.
 ```
 
 ---
 
 ## VS Code / Bob / Cursor / Windsurf extension
 
-The companion **LF MCP Demo** extension (Open VSX / VS Code Marketplace) provides the
-control plane: sidebar, diagnostics, send-to-chat prompts, and one-click commands.
+The companion **LF MCP Demo** extension is the control plane for this server — sidebar,
+step-by-step diagnostics, end-to-end CRUD test, send-to-chat prompts, and one-click
+commands that write IDE config without hand-editing `mcp.json`.
+
+Install from the marketplace:
+[VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=markusvankempen.lf-mcp-summit-demo) ·
+[Open VSX](https://open-vsx.org/extension/markusvankempen/lf-mcp-summit-demo)
 
 Key extension features:
 
@@ -438,6 +462,7 @@ Key extension features:
 | 📧 | [markus.van.kempen@gmail.com](mailto:markus.van.kempen@gmail.com) |
 | 🌐 | [markusvankempen.github.io](https://markusvankempen.github.io/) |
 | 🎤 | [MCP Dev Summit Toronto — Speaking Session](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401) |
+| 📊 | [Talk slides — MCP as a Platform](https://markusvankempen.github.io/linuxfoundation-mcp-dev-summit/#1) |
 | 💻 | [github.com/markusvankempen/mcp-ticket-demo](https://github.com/markusvankempen/mcp-ticket-demo) |
 
 > *No bug too small, no syntax too weird.*

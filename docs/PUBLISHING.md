@@ -59,7 +59,8 @@ open https://www.npmjs.com/package/mcp-ticket-demo
 | 1.0.3 | ✓ | — | for-the-badge shields, Linux Foundation / IBM Cloud badges, mcpName added locally but not in tarball |
 | 1.0.4 | ✓ | ✓ | mcpName in tarball, server.json, description ≤100 chars — **first MCP Registry publish** |
 | 1.6.0 | ✓ | — | Resources, prompts, annotations, isError, VERSION alignment |
-| 1.7.0 | | | Resource list + gate, Streamable HTTP sessions, CORS/Origin, read-only `/test`, public admin lock |
+| 1.7.0 | ✓ | ✓ | Resource list + gate, Streamable HTTP sessions, CORS/Origin, read-only `/test`, public admin lock |
+| 1.7.1 | | | README rewrite — description, cross-links, slides URL, lessons expanded (6), server/extension interlinks |
 
 ---
 

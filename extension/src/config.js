@@ -68,6 +68,7 @@ function settings() {
     apiKey: String(cfg.get("apiKey") || ""),
     authMode: String(cfg.get("authMode") || "off"),
     probeTarget: String(cfg.get("probeTarget") || "auto"),
+    autoConnectStdio: cfg.get("autoConnectStdio") !== false,
   };
 }
 
@@ -150,32 +151,64 @@ function stdioEnv() {
   return env;
 }
 
+function isElectronBinary(command) {
+  return /Code Helper|Visual Studio Code\.app|Cursor\.app|Windsurf\.app|Electron/i.test(String(command || ""));
+}
+
+function isRealNodeBinary(command) {
+  if (!command || !fs.existsSync(command)) return false;
+  const base = path.basename(command);
+  return base === "node" || base === "node.exe";
+}
+
 /**
- * Resolve the absolute path to the node binary.
- * VS Code on macOS launches with a minimal GUI PATH (/usr/bin:/bin) that
- * does not include /opt/homebrew/bin (Apple Silicon) or /usr/local/bin (Intel).
- * Using the full path avoids ENOENT when VS Code spawns the child process.
+ * Resolve the absolute path to a real Node binary — not the VS Code / Cursor
+ * Electron helper. The GUI PATH is too thin on macOS, so we search the login
+ * shell and common Homebrew locations.
  */
 function resolveNodePath() {
-  // 1. Use the binary running this extension — guaranteed to exist.
-  if (process.execPath && fs.existsSync(process.execPath)) return process.execPath;
-  // 2. Shell lookup as fallback (works in integrated terminal context).
   for (const shell of ["/bin/zsh", "/bin/bash"]) {
     try {
-      const found = execSync(`${shell} -lc "which node"`, { timeout: 3000 }).toString().trim();
-      if (found && fs.existsSync(found)) return found;
+      const found = execSync(`${shell} -lc "command -v node"`, { timeout: 3000 }).toString().trim();
+      if (isRealNodeBinary(found)) return found;
     } catch { /* ignore */ }
   }
-  // 3. Common install locations on macOS.
   for (const candidate of [
-    "/opt/homebrew/bin/node",   // Apple Silicon Homebrew
-    "/usr/local/bin/node",       // Intel Homebrew / nvm
+    "/opt/homebrew/bin/node",
+    "/usr/local/bin/node",
     "/usr/bin/node",
   ]) {
-    if (fs.existsSync(candidate)) return candidate;
+    if (isRealNodeBinary(candidate)) return candidate;
   }
-  // 4. Last resort — let the OS resolve it (will ENOENT if not on GUI PATH).
+  if (isRealNodeBinary(process.execPath)) return process.execPath;
   return "node";
+}
+
+function vscodeServerEntry(json, id = SERVER_ID) {
+  return json?.servers?.[id] || json?.mcpServers?.[id] || null;
+}
+
+function serverEntryKind(json, id = SERVER_ID) {
+  const entry = vscodeServerEntry(json, id);
+  if (!entry) return "missing";
+  if (entry.url || /^(sse|http|streamable-http)$/i.test(String(entry.type || ""))) return "remote";
+  return "stdio";
+}
+
+/**
+ * Whether activate() should write native stdio into client mcp.json files.
+ * Never overwrites an HTTP/SSE entry. Rewrites Electron/Code Helper commands.
+ */
+function planAutoConnect(info) {
+  if (!settings().autoConnectStdio) return { write: false, reason: "opt-out" };
+  if (!info.workspace || !info.serverEntryExists) return { write: false, reason: "no-server" };
+  const kinds = [info.vscode, info.cursor, info.bob, info.windsurf].map((c) => serverEntryKind(c?.json));
+  if (kinds.some((kind) => kind === "remote")) return { write: false, reason: "remote-entry" };
+  const vscodeKind = kinds[0];
+  if (vscodeKind === "missing") return { write: true, reason: "missing" };
+  const command = vscodeServerEntry(info.vscode.json)?.command;
+  if (isElectronBinary(command)) return { write: true, reason: "fix-node-path" };
+  return { write: false, reason: "already-connected" };
 }
 
 function nativeStdioEntry() {
@@ -444,6 +477,7 @@ module.exports = {
   podmanHttpUrl,
   discover,
   writeLocal,
+  planAutoConnect,
   writeRemote,
   writePodmanStdio,
   writePodmanHttp,

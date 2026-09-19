@@ -6,12 +6,12 @@
     "url": "https://github.com/markusvankempen/mcp-ticket-demo",
     "source": "github"
   },
-  "version": "1.7.0",
+  "version": "1.7.1",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "mcp-ticket-demo",
-      "version": "1.7.0",
+      "version": "1.7.1",
       "transport": {
         "type": "stdio"
       },
@@ -42,7 +42,7 @@
     {
       "registryType": "npm",
       "identifier": "mcp-ticket-demo",
-      "version": "1.7.0",
+      "version": "1.7.1",
       "transport": {
         "type": "streamable-http"
       },

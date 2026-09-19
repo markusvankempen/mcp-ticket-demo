@@ -16,7 +16,13 @@ A **production-shaped MCP server** you can run in under five minutes. Ships with
 
 Use it to **learn MCP**, **test IDE integrations**, run **live demos**, or as a **reference implementation** when building your own server.
 
-> Companion repo for [**MCP as a Platform: What I Learned Building a Portfolio of MCP Servers**](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401) · MCP Dev Summit Toronto · 5 October 2026
+> Companion to [**MCP as a Platform: What I Learned Building a Portfolio of MCP Servers**](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401) · MCP Dev Summit Toronto · 5 October 2026 · [**Talk slides →**](https://markusvankempen.github.io/linuxfoundation-mcp-dev-summit/#1)
+
+| | |
+|---|---|
+| **MCP server** | [`npm install mcp-ticket-demo`](https://www.npmjs.com/package/mcp-ticket-demo) |
+| **VS Code extension** | [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=MarkusvanKempen.lf-mcp-summit-demo) · [Open VSX](https://open-vsx.org/extension/markusvankempen/lf-mcp-summit-demo) |
+| **Talk slides** | [markusvankempen.github.io/linuxfoundation-mcp-dev-summit](https://markusvankempen.github.io/linuxfoundation-mcp-dev-summit/#1) |
 
 Personal open-source project. **Not an IBM product.**
 
@@ -102,7 +108,8 @@ Laptop login: `demo` / `demo`. On a public bind (`HOST=0.0.0.0`, container, Code
 }
 ```
 
-Or install the [VS Code extension](https://marketplace.visualstudio.com/items?itemName=MarkusvanKempen.lf-mcp-summit-demo) and click **Register server with all IDEs** — it writes all four configs at once.
+Or install the extension and click **Register server with all IDEs** — it writes all four configs at once:
+[VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=MarkusvanKempen.lf-mcp-summit-demo) · [Open VSX](https://open-vsx.org/extension/markusvankempen/lf-mcp-summit-demo)
 
 ---
 
@@ -223,4 +230,8 @@ mcp-ticket-demo/
 **Author:** Markus van Kempen ·
 [markus.van.kempen@gmail.com](mailto:markus.van.kempen@gmail.com) ·
 [markusvankempen.github.io](https://markusvankempen.github.io/) ·
-[MCP Dev Summit Toronto talk](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401)
+[MCP Dev Summit Toronto talk](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401) ·
+[Talk slides](https://markusvankempen.github.io/linuxfoundation-mcp-dev-summit/#1) ·
+[npm](https://www.npmjs.com/package/mcp-ticket-demo) ·
+[VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=MarkusvanKempen.lf-mcp-summit-demo) ·
+[Open VSX](https://open-vsx.org/extension/markusvankempen/lf-mcp-summit-demo)

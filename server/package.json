@@ -1,6 +1,6 @@
 {
   "name": "mcp-ticket-demo",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "mcpName": "io.github.markusvankempen/mcp-ticket-demo",
   "description": "Demo MCP server for ticket workflows — local stdio and remote HTTP. Teaches real-world MCP patterns: tool naming, attribution, schema discovery, auth, and PII gating.",
   "type": "module",
