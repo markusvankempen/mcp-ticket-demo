@@ -189,6 +189,7 @@ mcp-ticket-demo/
 
 | Doc | What's in it |
 |---|---|
+| [docs/DEMO.md](docs/DEMO.md) | **End-to-end demo guide** — 11 live curl demos, every lesson, real captured output |
 | [docs/LESSONS-LEARNED.md](docs/LESSONS-LEARNED.md) | **15 lessons** building a real MCP server — war stories + pre-publish checklist |
 | [docs/LOCAL.md](docs/LOCAL.md) | Local stdio + HTTP walkthrough |
 | [docs/REMOTE.md](docs/REMOTE.md) | Code Engine deploy + the 0-tools-discovered repro |
