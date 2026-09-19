@@ -581,7 +581,7 @@ export function createSecurity({ log } = {}) {
         return deny(
           principal,
           toolName,
-          `${toolName} is currently unavailable. An administrator has disabled this tool. Check /tools or /admin → Tools to see which tools are available.`,
+          `${toolName} is currently unavailable. An administrator has disabled this tool. Call describe_server to see which tools are available. Do not retry ${toolName} until it is enabled.`,
           { status: 503, reason: "tool disabled" },
         );
       }
@@ -605,7 +605,7 @@ export function createSecurity({ log } = {}) {
           return deny(
             principal,
             toolName,
-            `${toolName} requires authentication because auth mode is "${state.authMode}". Send Authorization: Bearer <api key> (create one on /admin → API keys) or HTTP Basic with a username and password. Over stdio set MCP_API_KEY in the server env.`,
+            `${toolName} requires authentication because auth mode is "${state.authMode}". Send Authorization: Bearer <api key> (create one on /admin → API keys) or HTTP Basic with a username and password. Over stdio set MCP_API_KEY in the server env. Call describe_server if you are unsure which tools need a credential.`,
             { status: 401, reason: "anonymous" },
           );
         }
@@ -613,7 +613,7 @@ export function createSecurity({ log } = {}) {
           return deny(
             principal,
             toolName,
-            `${principal.label} has scopes [${principal.grantedScopes.join(", ") || "none"}] but ${toolName} requires the "${needed}" scope. Issue a key with that scope on /admin → API keys.`,
+            `${principal.label} has scopes [${principal.grantedScopes.join(", ") || "none"}] but ${toolName} requires the "${needed}" scope. Issue a key with that scope on /admin → API keys, then retry ${toolName} once. Call describe_server to see the scopes you currently hold.`,
             { status: 403, reason: `missing scope ${needed}` },
           );
         }

@@ -391,7 +391,7 @@ async function activate(context) {
     if (!result.ok) {
       vscode.window.showWarningMessage("MCP CRUD test had failures. Check the MCP Test tab.");
     } else {
-      vscode.window.showInformationMessage("MCP CRUD test passed — create, get, comment, search all OK.");
+      vscode.window.showInformationMessage("MCP CRUD test passed — create, get, comment, close, search all OK.");
     }
     logAll("MCP CRUD test " + (result.ok ? "passed" : "failed"));
   });

@@ -21,6 +21,7 @@ import { createStore } from "./store.js";
 import { createSecurity } from "./security.js";
 import { createMcpServer, TOOL_CATALOG, TOOL_COUNT } from "./create-server.js";
 import { startHttp } from "./http.js";
+import { VERSION } from "./version.js";
 
 // ── Tiny assertion / reporting harness ───────────────────────────────────────
 
@@ -397,6 +398,9 @@ async function phase2() {
     check("/health body.ok = true", body.ok === true, `ok=${body.ok}`);
     check("/health transport = http", body.transport === "http", `got ${body.transport}`);
     check("/health tools count", body.tools === TOOL_COUNT, `got ${body.tools}, want ${TOOL_COUNT}`);
+    check("/health version aligned", body.version === VERSION, `got ${body.version}, want ${VERSION}`);
+    check("/health cwd on localhost", typeof body.cwd === "string" && body.cwd.length > 0,
+      `cwd=${body.cwd}`);
   }
 
   suite("HTTP — /test");
@@ -408,6 +412,9 @@ async function phase2() {
     check("/test has steps array", Array.isArray(body.steps), `got ${typeof body.steps}`);
     check("/test all steps passed", (body.steps || []).every((s) => s.ok),
       (body.steps || []).filter((s) => !s.ok).map((s) => `${s.name}: ${s.detail}`).join("; "));
+    check("/test public is read-only", body.writes === false, `writes=${body.writes}`);
+    check("/test has no create_ticket step", !(body.steps || []).some((s) => /create_ticket/.test(s.name)),
+      `steps=${(body.steps || []).map((s) => s.name).join()}`);
   }
 
   suite("HTTP — tools/list");
@@ -420,6 +427,74 @@ async function phase2() {
     check("tools/list — all catalog names present",
       TOOL_CATALOG.every(([name]) => tools.some((t) => t.name === name)),
       `missing: ${TOOL_CATALOG.filter(([n]) => !tools.some(t => t.name === n)).map(([n]) => n).join()}`);
+    const search = tools.find((t) => t.name === "search_tickets");
+    const close = tools.find((t) => t.name === "close_ticket");
+    check("tools/list — search_tickets readOnlyHint", search?.annotations?.readOnlyHint === true,
+      `annotations=${JSON.stringify(search?.annotations)}`);
+    check("tools/list — close_ticket destructiveHint", close?.annotations?.destructiveHint === true,
+      `annotations=${JSON.stringify(close?.annotations)}`);
+    check("tools/list — close_ticket idempotentHint", close?.annotations?.idempotentHint === true,
+      `annotations=${JSON.stringify(close?.annotations)}`);
+    check("tools/list — all tools openWorldHint false",
+      tools.every((t) => t.annotations?.openWorldHint === false),
+      `wrong: ${tools.filter((t) => t.annotations?.openWorldHint !== false).map((t) => t.name).join()}`);
+  }
+
+  suite("HTTP — resources/list + resources/read");
+  {
+    const listed = await mcpPost(60, "resources/list");
+    const resources = listed.body?.result?.resources ?? listed.body?.resources ?? [];
+    const uris = resources.map((r) => r.uri);
+    check("resources/list — HTTP 200", listed.status === 200, `got ${listed.status}`);
+    check("resources/list — ticket://TCK-1001", uris.includes("ticket://TCK-1001"),
+      `uris=${uris.join()}`);
+    check("resources/list — tickets://open", uris.includes("tickets://open"),
+      `uris=${uris.join()}`);
+    check("resources/list — schema://tickets", uris.includes("schema://tickets"),
+      `uris=${uris.join()}`);
+    check("resources/list — 3 schemas",
+      ["tickets", "customers", "assets"].every((name) => uris.includes(`schema://${name}`)),
+      `uris=${uris.join()}`);
+
+    const ticket = await mcpPost(61, "resources/read", { uri: "ticket://TCK-1001" });
+    const ticketData = safeJson((ticket.body?.result?.contents ?? ticket.body?.contents ?? [])[0]?.text);
+    check("resources/read ticket — HTTP 200", ticket.status === 200, `got ${ticket.status}`);
+    check("resources/read ticket — id TCK-1001", ticketData?.id === "TCK-1001",
+      `got ${ticketData?.id} body=${JSON.stringify(ticket.body).slice(0, 160)}`);
+
+    const open = await mcpPost(62, "resources/read", { uri: "tickets://open" });
+    const openData = safeJson((open.body?.result?.contents ?? open.body?.contents ?? [])[0]?.text);
+    check("resources/read open — count field", typeof openData?.count === "number",
+      `got ${JSON.stringify(openData).slice(0, 120)}`);
+
+    const schema = await mcpPost(63, "resources/read", { uri: "schema://tickets" });
+    const schemaData = safeJson((schema.body?.result?.contents ?? schema.body?.contents ?? [])[0]?.text);
+    check("resources/read schema — fields present", Array.isArray(schemaData?.fields),
+      `got ${JSON.stringify(schemaData).slice(0, 120)}`);
+
+    const missing = await mcpPost(64, "resources/read", { uri: "ticket://TCK-9999" });
+    const missingData = safeJson((missing.body?.result?.contents ?? missing.body?.contents ?? [])[0]?.text);
+    check("resources/read missing ticket — ok=false", missingData?.ok === false,
+      `got ${JSON.stringify(missingData).slice(0, 120)}`);
+  }
+
+  suite("HTTP — prompts/list + prompts/get");
+  {
+    const listed = await mcpPost(70, "prompts/list");
+    const prompts = listed.body?.result?.prompts ?? listed.body?.prompts ?? [];
+    const names = prompts.map((p) => p.name);
+    const expected = ["search-open-tickets", "attribution-scar", "schema-discovery", "close-ticket-flow", "diagnose-server"];
+    check("prompts/list — HTTP 200", listed.status === 200, `got ${listed.status}`);
+    check("prompts/list — 5 talk prompts", expected.every((name) => names.includes(name)),
+      `got ${names.join()}`);
+
+    const got = await mcpPost(71, "prompts/get", { name: "diagnose-server" });
+    const messages = got.body?.result?.messages ?? got.body?.messages ?? [];
+    const promptText = messages.map((m) => m.content?.text || "").join("\n");
+    check("prompts/get diagnose-server — HTTP 200", got.status === 200, `got ${got.status}`);
+    check("prompts/get diagnose-server — has user message",
+      messages.some((m) => m.role === "user") && /describe_server/.test(promptText),
+      `messages=${JSON.stringify(got.body).slice(0, 240)}`);
   }
 
   suite("HTTP — describe_server");
@@ -547,7 +622,10 @@ async function phase2() {
       arguments: { ticket_id: "TCK-9999" },
     });
     const d3 = safeJson(extractText(r3.body));
+    const result3 = r3.body?.result ?? r3.body;
     check("close_ticket bad id — ok=false", d3?.ok === false, `ok=${d3?.ok}`);
+    check("close_ticket bad id — isError:true", result3?.isError === true,
+      `isError=${result3?.isError} body=${JSON.stringify(r3.body).slice(0, 160)}`);
   }
 
   suite("HTTP — list_schemas");
@@ -624,10 +702,13 @@ async function phase2() {
       arguments: { subject: "auth test", body: "x" },
     });
     const data = safeJson(extractText(r.body));
+    const deniedResult = r.body?.result ?? r.body;
     check("auth=write over wire — create_ticket denied anon", data?.denied === true,
       `ok=${data?.ok} denied=${data?.denied}`);
     check("auth=write over wire — status 401 in payload", data?.status === 401,
       `got status=${data?.status}`);
+    check("auth=write over wire — isError:true", deniedResult?.isError === true,
+      `isError=${deniedResult?.isError} body=${JSON.stringify(r.body).slice(0, 160)}`);
 
     // search_tickets still open
     const r2 = await mcpPost(51, "tools/call", {
@@ -636,6 +717,39 @@ async function phase2() {
     });
     const d2 = safeJson(extractText(r2.body));
     check("auth=write over wire — search_tickets still open", d2?.ok === true, `ok=${d2?.ok}`);
+
+    // Resources share the matching tool gate — auth=all hides list + read.
+    security.setAuthMode("all");
+    const listed = await mcpPost(52, "resources/list");
+    const uris = (listed.body?.result?.resources ?? listed.body?.resources ?? []).map((row) => row.uri);
+    check("auth=all — resources/list empty", uris.length === 0, `uris=${uris.join()}`);
+
+    const ticket = await mcpPost(53, "resources/read", { uri: "ticket://TCK-1001" });
+    const rpcErr = ticket.body?.error;
+    const deniedData = rpcErr?.data && typeof rpcErr.data === "object" ? rpcErr.data : safeJson(rpcErr?.message);
+    check("auth=all — resources/read is protocol error", Boolean(rpcErr?.code),
+      `body=${JSON.stringify(ticket.body).slice(0, 200)}`);
+    check("auth=all — resources/read denied payload", deniedData?.denied === true,
+      `got ${JSON.stringify(ticket.body).slice(0, 200)}`);
+
+    const blocked = await fetch(`${BASE}/mcp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+        Origin: "https://evil.example",
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 54, method: "tools/list", params: {} }),
+    });
+    check("Origin check — foreign origin 403", blocked.status === 403, `got ${blocked.status}`);
+
+    const preflight = await fetch(`${BASE}/mcp`, {
+      method: "OPTIONS",
+      headers: { Origin: "http://127.0.0.1:6274", "Access-Control-Request-Method": "POST" },
+    });
+    check("CORS preflight — localhost 204", preflight.status === 204, `got ${preflight.status}`);
+    check("CORS preflight — allow origin", preflight.headers.get("access-control-allow-origin") === "http://127.0.0.1:6274",
+      `got ${preflight.headers.get("access-control-allow-origin")}`);
 
     security.setAuthMode("off");
   }

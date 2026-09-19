@@ -69,6 +69,17 @@ MCP_MODE=http   node src/index.js     ← Express: /mcp /sse /health /test /admi
 └──────────────────┴───────────┴────────────────────────────────────────────┘
 ```
 
+### Resources and prompts
+
+```
+resources/list     ticket://TCK-… · tickets://open · schema://tickets|customers|assets
+resources/read     same auth as get_ticket / search_tickets / get_schema
+                   A denied read is a JSON-RPC error — not a pin-able fake ticket
+
+prompts/list       search-open-tickets · attribution-scar · schema-discovery
+                   close-ticket-flow · diagnose-server
+```
+
 ### Queryable schemas
 
 ```
@@ -118,8 +129,8 @@ MCP_MODE=http npx mcp-ticket-demo
 |----------------|-------------------------------------------------|
 | `POST /mcp`    | Streamable HTTP MCP transport (JSON-RPC 2.0)    |
 | `GET  /sse`    | Legacy SSE MCP transport                        |
-| `GET  /health` | Liveness — cwd, version, tool count             |
-| `GET  /test`   | Smoke test — runs every tool internally         |
+| `GET  /health` | Liveness — version, tool count. `cwd` only on localhost |
+| `GET  /test`   | Read-only smoke. `/test?write=1` needs admin (create + close) |
 | `GET  /admin`  | Auth mode, API keys, tool gates, lab, audit log |
 | `GET  /log`    | Live tool counters, call trace, error log       |
 | `GET  /tools`  | Tool inventory page                             |
@@ -138,7 +149,7 @@ Replace the host with your Code Engine URL for remote testing.
 # Liveness check
 curl -s http://127.0.0.1:8787/health?format=json | jq .
 
-# Full smoke test (create + search pipeline)
+# Public read-only smoke (search / get / schemas / query — no writes)
 curl -s http://127.0.0.1:8787/test?format=json | jq .
 ```
 
@@ -214,6 +225,26 @@ curl -s -X POST $BASE/mcp \
   -H "Content-Type: application/json" \
   -H "Accept: application/json" \
   -d '{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"lookup_customer","arguments":{"email":"ada@example.com"}}}' \
+  | jq .
+
+# Resources — list instances, then read one
+curl -s -X POST $BASE/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{"jsonrpc":"2.0","id":13,"method":"resources/list","params":{}}' \
+  | jq .
+
+curl -s -X POST $BASE/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{"jsonrpc":"2.0","id":14,"method":"resources/read","params":{"uri":"ticket://TCK-1001"}}' \
+  | jq .
+
+# Prompts
+curl -s -X POST $BASE/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{"jsonrpc":"2.0","id":15,"method":"prompts/list","params":{}}' \
   | jq .
 ```
 
@@ -294,7 +325,8 @@ Issue API keys on `/admin → API Keys`. Switch mode from `/admin → Auth Mode`
 
 Each tool can be individually disabled from `/admin → Tool gates` without changing the global
 auth mode. A disabled tool returns a `503` with a clear message to the caller instead of
-silently failing. Re-enable it from the same panel.
+silently failing. Re-enable it from the same panel. Saving a gate or auth-mode change
+broadcasts `notifications/tools/list_changed` to connected SSE and Streamable HTTP sessions.
 
 ---
 
@@ -305,7 +337,9 @@ silently failing. Re-enable it from the same panel.
 | `MCP_MODE` | `stdio` | `stdio` or `http` |
 | `PORT` | `8080` | HTTP port |
 | `AUTH_MODE` | `off` | `off` / `write` / `all` |
-| `ADMIN_USER` / `ADMIN_PASSWORD` | `demo` / `demo` | `/admin` login |
+| `HOST` | `127.0.0.1` | `0.0.0.0` inside a container (set automatically) |
+| `ADMIN_USER` / `ADMIN_PASSWORD` | `demo` / `demo` | `/admin` login. Default disabled on a public bind until `ADMIN_PASSWORD` is set |
+| `CORS_ORIGINS` | unset | Extra `Origin` values allowed on `/mcp`. Localhost and same-host always allowed |
 | `API_KEY` / `API_KEY_SCOPES` | unset | Register one key at boot |
 | `MCP_USERS` | unset | `"alice:secret:read,write"` — extra logins |
 | `MCP_API_KEY` | unset | stdio: credential this process presents |
@@ -323,8 +357,8 @@ silently failing. Re-enable it from the same panel.
 | `/admin` | Auth mode, rate limit, API keys, tool gates, lab panel, users, recent tickets, audit trail |
 | `/log` | Tool call counters · admin audit trail · full call trace (audit mode) · error log |
 | `/tools` | Tool inventory with current scope enforcement |
-| `/test` | Smoke test steps (also available as JSON at `/test?format=json`) |
-| `/health` | Process liveness (also JSON at `/health?format=json`) |
+| `/test` | Read-only smoke as JSON at `/test?format=json`. Writes: `/test?write=1` after admin sign-in |
+| `/health` | Process liveness (JSON at `/health?format=json`). `cwd` only on localhost |
 
 ### Lab panel (generate data & traffic)
 
@@ -376,8 +410,8 @@ Key extension features:
 - **Register with all IDEs** — one button writes the server into `.vscode/mcp.json`,
   `.cursor/mcp.json`, `.bob/mcp.json`, and `.windsurf/mcp.json` simultaneously, then shows
   exactly which files were written.
-- **MCP Test tab** — runs a full CRUD test (create → get → add_comment → search) directly
-  against the HTTP server from inside the extension, with pass/fail for each step.
+- **MCP Test tab** — runs a full CRUD test (create → get → add_comment → close → search
+  with `status=all`) against the HTTP server, scoring the tool payload (not just HTTP 200).
 - **Diagnose** — checks workspace, config files, `/health`, `/test`, `tools/list`, and a
   live `search_tickets` call.
 

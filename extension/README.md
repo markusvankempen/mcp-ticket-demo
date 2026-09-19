@@ -28,7 +28,7 @@ Extension (VS Code / Bob / Cursor / Windsurf)
     └── Send-to-chat prompts
 
 MCP Server  (pulled from npm: mcp-ticket-demo)
-├── 10 tools  (tickets · customers · assets · auth)
+├── 10 tools · 3 resources · 5 prompts
 ├── stdio transport  — local child process, no port
 ├── HTTP transport  — /sse  /mcp  /health  /test  /admin
 └── Optional Podman image  — same Dockerfile as Code Engine
@@ -457,11 +457,13 @@ Native stdio config     .vscode / .cursor / .bob / .windsurf written
 Client MCP config       At least one mcp.json present
 Podman MCP config       Podman entry present (when probe=podman)
 Local Podman            podman version, container status
-GET /health             HTTP 200, cwd field, latency
-GET /test               All internal smoke steps passed
+GET /health             HTTP 200, version, tool count (`cwd` on localhost only)
+GET /test               Public read-only smoke passed
 tools/list              At least 1 tool returned (the silent failure)
 search_tickets          Real call returns TCK- ids
 ```
+
+**MCP Demo: Run MCP CRUD test** (panel → MCP Test tab) creates a ticket, reads it, comments, closes it, then searches with `status=all`. It scores the tool JSON (`ok`, `ticket.id`, `status`), not HTTP 200.
 
 ---
 
@@ -488,6 +490,8 @@ LF MCP Demo: Open /tools                 Open in browser
 LF MCP Demo: Open /help                  Open in browser
 LF MCP Demo: Open mcp.json               Show the written config file
 LF MCP Demo: Show quick menu             Status-bar shortcut menu
+LF MCP Demo: Register server with all IDEs  Write mcp.json for VS Code, Cursor, Bob, Windsurf
+LF MCP Demo: Run MCP CRUD test           create → get → comment → close → search (status=all)
 LF MCP Demo: Install bundled server      npm install mcp-ticket-demo into global storage
 LF MCP Demo: Update server from npm      Check npm for newer version and install it
 Refresh                                  Reload the Resources tree
@@ -530,8 +534,8 @@ summitMcp.authMode         off | write | all
 ## HTTP endpoints (native HTTP and Podman)
 
 ```
-GET  /health         Liveness. Returns cwd, version, tool count.
-GET  /test           Smoke test. Runs every tool internally.
+GET  /health         Liveness. Version, tool count. `cwd` only on localhost.
+GET  /test           Read-only smoke. `/test?write=1` after admin sign-in creates + closes.
 GET  /admin          Admin UI — auth mode, API key management, audit log.
 GET  /tools          Tool inventory page.
 GET  /help           Setup instructions.

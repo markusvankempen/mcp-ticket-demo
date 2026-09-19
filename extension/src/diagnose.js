@@ -3,17 +3,30 @@ const podman = require("./podman");
 const fs = require("fs");
 const path = require("path");
 
+function parseHttpBody(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return {};
+  try { return JSON.parse(raw); } catch { /* SSE or mixed */ }
+  const dataLine = raw.split(/\r?\n/).find((l) => l.startsWith("data:"));
+  if (dataLine) {
+    try { return JSON.parse(dataLine.slice(5).trim()); } catch { /* ignore */ }
+  }
+  const brace = raw.split(/\r?\n/).find((l) => l.startsWith("{"));
+  if (brace) {
+    try { return JSON.parse(brace); } catch { /* ignore */ }
+  }
+  return { raw: raw.slice(0, 400) };
+}
+
 async function fetchJson(url, options = {}) {
   const started = Date.now();
   try {
     const res = await fetch(url, {
       ...options,
-      headers: { Accept: "application/json", ...(options.headers || {}) },
+      headers: { Accept: "application/json, text/event-stream", ...(options.headers || {}) },
     });
     const text = await res.text();
-    let body;
-    try { body = JSON.parse(text); } catch { body = text.slice(0, 400); }
-    return { ok: res.ok, status: res.status, ms: Date.now() - started, body };
+    return { ok: res.ok, status: res.status, ms: Date.now() - started, body: parseHttpBody(text) };
   } catch (error) {
     return { ok: false, status: 0, ms: Date.now() - started, error: error.message };
   }
@@ -230,11 +243,48 @@ async function mcpCall(base, toolName, args, auth) {
 
 function extractContent(result) {
   const body = result.body;
-  if (!body) return null;
+  if (!body) return "";
   if (typeof body === "string") return body;
+  if (body.raw) return String(body.raw);
   const content = body.result?.content || body.content || [];
   if (Array.isArray(content)) return content.map((c) => c.text || "").join("\n");
   return JSON.stringify(body);
+}
+
+/** Tool JSON from content[], plus isError / RPC error. HTTP 200 is not success. */
+function toolResult(result) {
+  const body = result.body;
+  if (!result.ok) {
+    return { ok: false, error: result.error || `HTTP ${result.status}`, payload: null, text: "" };
+  }
+  if (!body || typeof body === "string") {
+    const text = String(body || "");
+    try {
+      const payload = JSON.parse(text);
+      return { ok: payload?.ok === true, payload, text, error: payload?.error };
+    } catch {
+      return { ok: false, payload: null, text, error: text.slice(0, 160) };
+    }
+  }
+  if (body.error) {
+    const data = body.error.data && typeof body.error.data === "object" ? body.error.data : {};
+    return {
+      ok: false,
+      payload: data,
+      text: body.error.message || "",
+      error: data.error || body.error.message || "MCP error",
+    };
+  }
+  const text = extractContent(result);
+  let payload = null;
+  try { payload = JSON.parse(text); } catch { /* not JSON */ }
+  const isError = body.result?.isError === true;
+  return {
+    ok: !isError && payload?.ok === true,
+    payload,
+    text,
+    error: payload?.error || (isError ? "tool returned isError" : undefined),
+  };
 }
 
 async function runMcpCrud() {
@@ -244,85 +294,84 @@ async function runMcpCrud() {
 
   // 1. search_tickets — read (baseline)
   const list = await mcpCall(base, "search_tickets", { status: "open", limit: 3 }, auth);
-  const listText = extractContent(list) || "";
+  const listed = toolResult(list);
+  const listedIds = (listed.text.match(/TCK-\d+/g) || []);
   steps.push({
     name: "search_tickets (read)",
-    ok: list.ok && /TCK-/.test(listText),
-    detail: list.ok ? `Found tickets: ${(listText.match(/TCK-\d+/g) || []).join(", ") || "none"}` : (list.error || `HTTP ${list.status}`),
-    next: list.ok ? undefined : `Start the HTTP server first (Start native HTTP). Probe: ${base}`,
+    ok: listed.ok && listedIds.length > 0,
+    detail: listed.ok ? `Found tickets: ${listedIds.join(", ") || "none"}` : (listed.error || `HTTP ${list.status}`),
+    next: listed.ok ? undefined : `Start the HTTP server first (Start native HTTP). Probe: ${base}`,
   });
 
   // 2. create_ticket
-  const created = await mcpCall(base, "create_ticket", {
+  const created = toolResult(await mcpCall(base, "create_ticket", {
     subject: "MCP CRUD test ticket",
     body: "Created by the MCP CRUD test in the extension.",
     requester_email: "markus.van.kempen@gmail.com",
-  }, auth);
-  const createdText = extractContent(created) || "";
-  const ticketId = (createdText.match(/TCK-\d+/) || [])[0] || null;
+  }, auth));
+  const ticketId = created.payload?.ticket?.id || (created.text.match(/TCK-\d+/) || [])[0] || null;
   steps.push({
     name: "create_ticket",
     ok: created.ok && Boolean(ticketId),
-    detail: ticketId ? `Created ${ticketId}` : (created.error || createdText.slice(0, 120) || `HTTP ${created.status}`),
+    detail: ticketId ? `Created ${ticketId}` : (created.error || created.text.slice(0, 120) || "create_ticket failed"),
     next: created.ok ? undefined : "If auth mode is write or all, set summitMcp.apiKey in Settings with a key that has write scope.",
   });
 
-  // 3. get_ticket — read back what we just created
-  if (ticketId) {
-    const got = await mcpCall(base, "get_ticket", { ticket_id: ticketId }, auth);
-    const gotText = extractContent(got) || "";
-    const subject = (() => {
-      try { return JSON.parse(gotText)?.ticket?.subject || "ok"; } catch { return "ok"; }
-    })();
-    steps.push({
-      name: `get_ticket (${ticketId})`,
-      ok: got.ok && gotText.includes(ticketId),
-      detail: got.ok ? `Retrieved — subject: ${subject}` : (got.error || `HTTP ${got.status}`),
-    });
-
-    // 4. add_comment
-    const commented = await mcpCall(base, "add_comment", { ticket_id: ticketId, body: "MCP CRUD test comment.", author: "markus.van.kempen@gmail.com" }, auth);
-    const commentedText = extractContent(commented) || "";
-    steps.push({
-      name: `add_comment (${ticketId})`,
-      ok: commented.ok && (commentedText.includes(ticketId) || commentedText.toLowerCase().includes("comment")),
-      detail: commented.ok ? "Comment added" : (commented.error || `HTTP ${commented.status}`),
-      next: commented.ok ? undefined : "add_comment needs write scope. Check summitMcp.apiKey.",
-    });
-  } else {
-    steps.push({ name: "get_ticket",  ok: false, detail: "Skipped — create_ticket failed." });
+  if (!ticketId) {
+    steps.push({ name: "get_ticket", ok: false, detail: "Skipped — create_ticket failed." });
     steps.push({ name: "add_comment", ok: false, detail: "Skipped — create_ticket failed." });
     steps.push({ name: "close_ticket", ok: false, detail: "Skipped — create_ticket failed." });
+    steps.push({ name: "search_tickets finds ticket", ok: false, detail: "Skipped — create_ticket failed." });
+    return { ok: false, steps, base };
   }
 
-  // 5. close_ticket
-  if (ticketId) {
-    const closed = await mcpCall(base, "close_ticket", {
-      ticket_id: ticketId,
-      resolution: "Resolved by MCP CRUD test.",
-      closed_by: "markus.van.kempen@gmail.com",
-    }, auth);
-    const closedText = extractContent(closed) || "";
-    let closedOk = false;
-    try { closedOk = JSON.parse(closedText)?.ok === true; } catch { /* ignore */ }
-    steps.push({
-      name: `close_ticket (${ticketId})`,
-      ok: closed.ok && closedOk,
-      detail: closed.ok && closedOk ? "Closed — status: solved" : (closed.error || `HTTP ${closed.status}`),
-      next: closed.ok ? undefined : "close_ticket needs write scope. Check summitMcp.apiKey.",
-    });
-  }
+  // 3. get_ticket — read back what we just created
+  const got = toolResult(await mcpCall(base, "get_ticket", { ticket_id: ticketId }, auth));
+  steps.push({
+    name: `get_ticket (${ticketId})`,
+    ok: got.ok && got.payload?.ticket?.id === ticketId,
+    detail: got.ok ? `Retrieved — subject: ${got.payload?.ticket?.subject || "ok"}` : (got.error || "get_ticket failed"),
+  });
 
-  // 6. search for the ticket we just created
-  if (ticketId) {
-    const search = await mcpCall(base, "search_tickets", { status: "open", limit: 20 }, auth);
-    const searchText = extractContent(search) || "";
-    steps.push({
-      name: `search_tickets finds ${ticketId}`,
-      ok: search.ok && searchText.includes(ticketId),
-      detail: search.ok ? (searchText.includes(ticketId) ? "Found in results" : "Not yet in results — eventually consistent") : (search.error || `HTTP ${search.status}`),
-    });
-  }
+  // 4. add_comment
+  const commented = toolResult(await mcpCall(base, "add_comment", {
+    ticket_id: ticketId,
+    body: "MCP CRUD test comment.",
+    author: "markus.van.kempen@gmail.com",
+  }, auth));
+  const commentCount = commented.payload?.ticket?.comments?.length;
+  steps.push({
+    name: `add_comment (${ticketId})`,
+    ok: commented.ok && commented.payload?.ticket?.id === ticketId,
+    detail: commented.ok ? `Comment added${commentCount ? ` (${commentCount} on ticket)` : ""}` : (commented.error || "add_comment failed"),
+    next: commented.ok ? undefined : "add_comment needs write scope. Check summitMcp.apiKey.",
+  });
+
+  // 5. close_ticket — ticket is now solved, so later search must use status=all
+  const closed = toolResult(await mcpCall(base, "close_ticket", {
+    ticket_id: ticketId,
+    resolution: "Resolved by MCP CRUD test.",
+    closed_by: "markus.van.kempen@gmail.com",
+  }, auth));
+  steps.push({
+    name: `close_ticket (${ticketId})`,
+    ok: closed.ok && closed.payload?.ticket?.status === "solved",
+    detail: closed.ok
+      ? `Closed — status: ${closed.payload?.ticket?.status}${closed.payload?.alreadyClosed ? " (already closed)" : ""}`
+      : (closed.error || "close_ticket failed"),
+    next: closed.ok ? undefined : "close_ticket needs write scope. Check summitMcp.apiKey.",
+  });
+
+  // 6. find the ticket we created — it is solved, so status=open will miss it
+  const search = toolResult(await mcpCall(base, "search_tickets", { status: "all", query: "MCP CRUD test ticket", limit: 25 }, auth));
+  const found = Boolean(search.payload?.tickets?.some((t) => t.id === ticketId) || search.text.includes(ticketId));
+  steps.push({
+    name: `search_tickets finds ${ticketId}`,
+    ok: search.ok && found,
+    detail: search.ok
+      ? (found ? "Found in results (status=all)" : "Not in results")
+      : (search.error || "search_tickets failed"),
+  });
 
   return { ok: steps.every((s) => s.ok), steps, base };
 }

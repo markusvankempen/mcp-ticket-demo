@@ -12,6 +12,7 @@ ENV NODE_ENV=production
 ENV MCP_MODE=http
 ENV PORT=8080
 ENV HOST=0.0.0.0
+# Public bind: set ADMIN_PASSWORD at run time. demo/demo is laptop-only.
 
 # Run as non-root — required by IBM security policy and good container practice.
 USER 1001

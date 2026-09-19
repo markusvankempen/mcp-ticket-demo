@@ -29,9 +29,9 @@ Most MCP examples stop at "here is a tool that returns a string." This one goes 
 | Feature | What you learn |
 |---|---|
 | **10 tools with intent-named descriptions** | Naming is the interface — not `request(path, method)` |
-| **3 resources** (`ticket://`, `tickets://open`, `schema://`) | Resources vs tools — when to pin vs when to call |
+| **3 resources** (`ticket://`, `tickets://open`, `schema://`) | `resources/list` enumerates instances; reads use the same `gate()` as the matching tool |
 | **5 MCP prompts** | User-facing prompts vs agent-facing tools |
-| **Tool annotations** (`readOnlyHint`, `destructiveHint`, `idempotentHint`) | Client confirm/retry UX |
+| **Tool annotations** (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint: false`) | Client confirm/retry UX |
 | **Server instructions** | The README the model actually reads |
 | **`isError: true` on every failure** | Clients don't need to parse `ok: false` |
 | **Attribution scar** — `create_ticket` without `requester_email` | 201 is not done. The bot owns the ticket. |
@@ -39,10 +39,10 @@ Most MCP examples stop at "here is a tool that returns a string." This one goes 
 | **0 tools discovered** — hand a laptop path to a cloud runner | The silent failure with no error and no warning |
 | **stdio + SSE + Streamable HTTP** from one codebase | Two transports, same 10 tools |
 | **Auth modes** (`off` / `write` / `all`) + per-tool gate + per-tool auth lock | Security is an operator concern |
-| **`tools/list_changed` broadcast** when admin flips a gate | Clients refresh without manual reload |
+| **`tools/list_changed` broadcast** when admin flips a gate | SSE **and** Streamable HTTP sessions refresh; one-shot curl does not |
 | **Rate limiting** with `retry_after_seconds` in the error | Stop the model retrying in a loop |
 | **PII redaction** on `lookup_customer` | Scope-gated field visibility |
-| **`/health` vs `/test`** | Alive ≠ works |
+| **`/health` vs `/test`** | Alive ≠ works. Public `/test` is read-only; `cwd` stays off public `/health` |
 | **Live observability** — `/log` page with counters, error log, call trace | See what the model is actually doing |
 
 ---
@@ -63,13 +63,13 @@ Then open in a browser:
 
 | URL | What it shows |
 |---|---|
-| http://127.0.0.1:8787/health | Is the process alive? |
-| http://127.0.0.1:8787/test | Does a real create + search work? |
+| http://127.0.0.1:8787/health | Is the process alive? (`cwd` only on localhost) |
+| http://127.0.0.1:8787/test | Read-only smoke (search / get / schemas / query) |
 | http://127.0.0.1:8787/admin | Auth mode, API keys, tool gates, observability |
 | http://127.0.0.1:8787/log | Call counters, error log, full call trace |
 | http://127.0.0.1:8787/tools | Tool inventory with scope and auth status |
 
-Login: `demo` / `demo`
+Laptop login: `demo` / `demo`. On a public bind (`HOST=0.0.0.0`, container, Code Engine) set `ADMIN_PASSWORD` — the default is disabled. Write smoke is `/test?write=1` after admin sign-in.
 
 ---
 
@@ -127,11 +127,13 @@ Or install the [VS Code extension](https://marketplace.visualstudio.com/items?it
 
 Resources are **addressable and pinnable** — clients can subscribe and refresh. Tools are for agent loops.
 
-| URI | What it returns |
-|---|---|
-| `ticket://TCK-1001` | One ticket by id |
-| `tickets://open` | Live open ticket list (top 25) |
-| `schema://tickets` | Query schema shape (also `customers`, `assets`) |
+| URI | What it returns | Same gate as |
+|---|---|---|
+| `ticket://TCK-1001` | One ticket by id | `get_ticket` |
+| `tickets://open` | Live open ticket list (top 25) | `search_tickets` |
+| `schema://tickets` | Query schema shape (also `customers`, `assets`) | `get_schema` / `list_schemas` |
+
+Call `resources/list` to browse — you do not need to know a URI ahead of time. A denied read is a JSON-RPC error (not a fake ticket document you can pin).
 
 ---
 
@@ -160,7 +162,7 @@ all    Every tool call requires a credential.
 Credentials: `Authorization: Bearer <api key>` over HTTP · `MCP_API_KEY` env var over stdio.
 
 Issue keys, set modes, toggle per-tool gates, and lock individual tools on `/admin`.
-A change broadcasts `tools/list_changed` to all connected clients immediately.
+A change broadcasts `notifications/tools/list_changed` to connected SSE and Streamable HTTP sessions (Cursor/Bob after `initialize`). One-shot `POST /mcp` (curl) has no session — it sees the new list on the next call.
 
 ---
 
@@ -198,7 +200,8 @@ mcp-ticket-demo/
 | `PORT` | `8080` | HTTP only |
 | `HOST` | `127.0.0.1` | `0.0.0.0` inside container (set automatically) |
 | `AUTH_MODE` | `off` | `off` · `write` · `all` |
-| `ADMIN_USER` / `ADMIN_PASSWORD` | `demo` / `demo` | `/admin` login |
+| `ADMIN_USER` / `ADMIN_PASSWORD` | `demo` / `demo` | `/admin` login. Default disabled on a public bind until `ADMIN_PASSWORD` is set |
+| `CORS_ORIGINS` | unset | Extra `Origin` values allowed on `/mcp`. Localhost and same-host are always allowed |
 | `API_KEY` / `API_KEY_SCOPES` | unset | Register one key at boot |
 | `MCP_API_KEY` | unset | stdio credential |
 | `MCP_USERNAME` / `MCP_PASSWORD` | unset | stdio basic auth |
@@ -211,8 +214,9 @@ mcp-ticket-demo/
 ## Honest limits
 
 - Tickets live in memory — a new container starts from seed data.
-- Admin auth is a session cookie, not SSO.
+- Admin auth is a session cookie, not SSO. Cookie is `HttpOnly` (+ `Secure` on HTTPS).
 - `/health` being green does not mean the ticket went to the right person.
+- Public `/test` does not create or close tickets. Use `/test?write=1` after admin sign-in.
 
 ---
 

@@ -294,7 +294,7 @@ export function healthPage(info) {
     body: `
       <div class="eyebrow">Alive?</div>
       <h2>Is it up?<br><span>${info.ok ? "Yes." : "No."}</span></h2>
-      <p class="muted">A 200 means the process is running — not that a tool call will succeed. Open <a href="/test">Test</a> for that. ${helpToggle("health-info", "Understanding /health", "Returns process state, cwd, auth mode, and rate limit status. Designed for uptime probes.", { text: "Docs", url: "/help#local" })}</p>
+      <p class="muted">A 200 means the process is running — not that a tool call will succeed. Open <a href="/test">Test</a> for that. ${helpToggle("health-info", "Understanding /health", "Returns process state, auth mode, and rate limit status. cwd is only included on localhost — not on a public host.", { text: "Docs", url: "/help#local" })}</p>
       ${stats([
         ["status", info.ok ? "alive" : "down", info.ok ? "ok" : "warn"],
         ["transport", info.transport],
@@ -303,7 +303,7 @@ export function healthPage(info) {
         ["api keys", info.security.activeKeyCount],
         ["rate limit", info.security.rateLimit?.enabled ? `${info.security.rateLimit.limit}/${Math.round(info.security.rateLimit.windowMs / 1000)}s` : "off"],
         ["tenant", info.security.tenantRequired ? "required" : "not set"],
-        ["cwd", info.cwd],
+        ...(info.cwd ? [["cwd", info.cwd]] : []),
       ])}
       <h3>Raw JSON ${helpToggle("health-raw", "JSON Payload", "Matches GET /health?format=json or Accept: application/json.", { text: "/health?format=json", url: "/health?format=json" })}</h3>
       <pre>${escapeHtml(JSON.stringify(info, null, 2))}</pre>
@@ -338,7 +338,7 @@ export function testPage(result, host = "127.0.0.1:8787") {
       <h2>Does it really work?<br><span>${result.ok ? "Yes." : "Something failed."}</span></h2>
       ${pageTabs("test", [["tab-smoke", "Smoke test"], ["tab-curl", "curl commands"], ["tab-raw", "Raw JSON"]])}
       <div id="tab-smoke" class="pane active" data-group="test">
-        <p class="muted">Happy-path pipeline against the in-memory store. ${helpToggle("test-info", "Alive vs Working", "Health checks confirm the process is up, but /test actually executes real tool queries to prove end-to-end functionality.", { text: "Docs", url: "/help#smoke" })}</p>
+        <p class="muted">${result.writes ? "Write smoke (admin): create + close plus reads." : "Public read-only smoke against the in-memory store. Writes require <a href=\"/test?write=1\">/test?write=1</a> after signing in at /admin."} ${helpToggle("test-info", "Alive vs Working", "Health checks confirm the process is up. Public /test only reads. Create/close is admin-only so a public URL cannot mutate the store.", { text: "Docs", url: "/help#smoke" })}</p>
         <ul class="checklist">${items}</ul>
       </div>
       <div id="tab-curl" class="pane" data-group="test">
@@ -363,7 +363,7 @@ export function adminLoginPage(error) {
     body: `
       <div class="eyebrow">Operable?</div>
       <h2>Admin.<br><span>Sign in.</span></h2>
-      <p class="muted">Default: <code>demo</code> / <code>demo</code>. Override with <code>ADMIN_USER</code> and <code>ADMIN_PASSWORD</code> env vars.</p>
+      <p class="muted">Laptop default: <code>demo</code> / <code>demo</code>. On a public bind (<code>HOST=0.0.0.0</code>, container, Code Engine) set <code>ADMIN_PASSWORD</code> — the default is disabled. Cookies are <code>HttpOnly</code> and <code>Secure</code> on HTTPS.</p>
       ${error ? `<p class="warn">${escapeHtml(error)}</p>` : ""}
       <form method="post" action="/admin/login" style="max-width:340px">
         <p><label style="font-size:13px;color:var(--muted)">Username<br><input name="username" autocomplete="username"></label></p>
@@ -499,6 +499,7 @@ function toolGatesPanel(security) {
       <strong>Lock</strong> forces that tool to require a credential, even when the global auth mode is <em>off</em>.
       Locked tools respect the tool's natural scope (<code>read</code>, <code>write</code>, or <code>pii</code>).
     </p>
+    <p class="muted">Saving a gate or auth-mode change broadcasts <code>notifications/tools/list_changed</code> to connected SSE and Streamable HTTP sessions. Clients that opened a session (Cursor, Bob) refresh <code>tools/list</code> without a reload. One-shot <code>POST /mcp</code> calls (curl) have no session — they see the new list on the next request.</p>
     <div class="tbl-wrap"><table><thead><tr><th>Tool</th><th>Availability</th><th>Auth override</th></tr></thead><tbody>${rows}</tbody></table></div>
   </div>`;
 }
@@ -853,8 +854,8 @@ MCP_API_KEY=mcpk_... node src/index.js</pre>
         <div class="panel" id="smoke">
           <h4>Pages and access</h4>
           <ul class="checklist">
-            <li><strong>/health</strong> — public. Process alive? cwd? auth mode? rate limit config.</li>
-            <li><strong>/test</strong> — public. Runs a create + search smoke test against the store. Also has curl command examples.</li>
+            <li><strong>/health</strong> — public. Process alive? auth mode? rate limit? cwd only on localhost.</li>
+            <li><strong>/test</strong> — public read-only smoke. <code>/test?write=1</code> creates and closes a ticket and requires admin sign-in.</li>
             <li><strong>/tools</strong> — public. Full tool inventory with current scope enforcement state.</li>
             <li><strong>/admin</strong> 🔒 — requires login. Auth mode, keys, tool gates, lab, data, users.</li>
             <li><strong>/log</strong> 🔒 — requires login. Tool counters, error log (searchable, expandable), call trace, audit trail.</li>
