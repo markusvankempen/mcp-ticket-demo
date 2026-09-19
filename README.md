@@ -1,48 +1,166 @@
 [![MCP as a Platform — MCP Dev Summit Toronto 2026](docs/assets/mcp-as-a-platform-banner.jpeg)](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401)
 
-# MCP Demo
+# MCP Ticket Demo — A Full-Stack MCP Reference Server
 
+[![npm](https://img.shields.io/npm/v/mcp-ticket-demo?style=for-the-badge&logo=npm&logoColor=white&label=npm)](https://www.npmjs.com/package/mcp-ticket-demo)
+[![npm downloads](https://img.shields.io/npm/dm/mcp-ticket-demo?style=for-the-badge&logo=npm&logoColor=white)](https://www.npmjs.com/package/mcp-ticket-demo)
+[![VS Code](https://img.shields.io/visual-studio-marketplace/v/MarkusvanKempen.lf-mcp-summit-demo?style=for-the-badge&logo=visualstudiocode&label=VS%20Code)](https://marketplace.visualstudio.com/items?itemName=MarkusvanKempen.lf-mcp-summit-demo)
+[![Open VSX](https://img.shields.io/open-vsx/v/markusvankempen/lf-mcp-summit-demo?style=for-the-badge&label=Open%20VSX)](https://open-vsx.org/extension/markusvankempen/lf-mcp-summit-demo)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![MCP](https://img.shields.io/badge/MCP-Protocol-5A29E4?style=for-the-badge)](https://modelcontextprotocol.io/)
 [![IBM Cloud](https://img.shields.io/badge/IBM-Cloud_Code_Engine-052FAD?style=for-the-badge&logo=ibm&logoColor=white)](https://www.ibm.com/products/code-engine)
-[![npm](https://img.shields.io/npm/v/mcp-ticket-demo?style=for-the-badge&logo=npm&logoColor=white&label=npm)](https://www.npmjs.com/package/mcp-ticket-demo)
-[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
-[![GitHub](https://img.shields.io/badge/GitHub-mcp--ticket--demo-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/markusvankempen/mcp-ticket-demo)
-[![Linux Foundation](https://img.shields.io/badge/Linux_Foundation-MCP_Dev_Summit_Toronto-003366?style=for-the-badge)](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401)
+[![Linux Foundation](https://img.shields.io/badge/Linux_Foundation-MCP_Dev_Summit_Toronto-003306?style=for-the-badge)](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401)
 
-Companion repo for [**MCP as a Platform: What I Learned Building a Portfolio of MCP Servers**](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401) · [MCP Dev Summit Toronto](https://events.linuxfoundation.org/mcp-dev-summit-toronto/) · Monday 5 October 2026, 12:00–12:25 EDT · Terrace East + West
+A **production-shaped MCP server** you can run in under five minutes. Ships with 10 tools, 3 resources, 5 prompts, three auth modes, API key management, per-tool gates, rate limiting, a live observability dashboard, and a VS Code / Bob / Cursor / Windsurf control-plane extension.
 
-**Clone:** [github.com/markusvankempen/mcp-ticket-demo](https://github.com/markusvankempen/mcp-ticket-demo)
+Use it to **learn MCP**, **test IDE integrations**, run **live demos**, or as a **reference implementation** when building your own server.
 
-I built this because I wanted something I could point at on stage and say: here's the architecture from the talk, running twice — once on the laptop, once on IBM Cloud Code Engine — with an editor extension that is the control plane.
+> Companion repo for [**MCP as a Platform: What I Learned Building a Portfolio of MCP Servers**](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401) · MCP Dev Summit Toronto · 5 October 2026
 
-Personal open-source demo. **Not an IBM product.**
-
-> The extension is the control plane. The MCP server is the capability.
-
-Same tools. Same schemas. Same in-memory tickets. Two transports.
-
-| How you run it | Transport | Port | Secrets |
-|---|---|---|---|
-| Laptop, native (Cursor / VS Code / Bob) | **stdio** — `node`, no Docker | none | env on your machine |
-| Laptop, browser diagnostics | **HTTP** `:8787` | 8787 | env on your machine |
-| Code Engine (container) | **SSE** `/sse` + **Streamable HTTP** `/mcp` | **443** | env on the app |
+Personal open-source project. **Not an IBM product.**
 
 ---
 
-## What this demo is for
+## What makes this useful beyond a hello-world
 
-It is a support-ticketing sandbox that teaches the talk, not a Zendesk clone.
+Most MCP examples stop at "here is a tool that returns a string." This one goes further:
 
-| You do this | Talk point it makes |
+| Feature | What you learn |
 |---|---|
-| Call `search_tickets` instead of `request(path, method)` | Naming is the interface |
-| Call `create_ticket` **without** `requester_email` | 201 is not done — the bot owns the ticket |
-| Call `list_schemas` then `run_query` | One query tool beats a pile of `query_*` names |
-| Open `/health` then `/test` | Alive ≠ works |
-| Sign in to `/admin` and lock write tools | Security is an operator concern, not a README footnote |
-| Hand a laptop path to a cloud runner | **0 tools discovered** — no error, no warning |
-| Write `mcp.json` from the extension | Discover → Connect → Diagnose |
+| **10 tools with intent-named descriptions** | Naming is the interface — not `request(path, method)` |
+| **3 resources** (`ticket://`, `tickets://open`, `schema://`) | Resources vs tools — when to pin vs when to call |
+| **5 MCP prompts** | User-facing prompts vs agent-facing tools |
+| **Tool annotations** (`readOnlyHint`, `destructiveHint`, `idempotentHint`) | Client confirm/retry UX |
+| **Server instructions** | The README the model actually reads |
+| **`isError: true` on every failure** | Clients don't need to parse `ok: false` |
+| **Attribution scar** — `create_ticket` without `requester_email` | 201 is not done. The bot owns the ticket. |
+| **Schema discovery** — `list_schemas → get_schema → run_query` | One query tool beats a pile of `query_*` names |
+| **0 tools discovered** — hand a laptop path to a cloud runner | The silent failure with no error and no warning |
+| **stdio + SSE + Streamable HTTP** from one codebase | Two transports, same 10 tools |
+| **Auth modes** (`off` / `write` / `all`) + per-tool gate + per-tool auth lock | Security is an operator concern |
+| **`tools/list_changed` broadcast** when admin flips a gate | Clients refresh without manual reload |
+| **Rate limiting** with `retry_after_seconds` in the error | Stop the model retrying in a loop |
+| **PII redaction** on `lookup_customer` | Scope-gated field visibility |
+| **`/health` vs `/test`** | Alive ≠ works |
+| **Live observability** — `/log` page with counters, error log, call trace | See what the model is actually doing |
+
+---
+
+## Quickstart — five minutes
+
+```bash
+# Run directly from npm — no clone needed
+npx mcp-ticket-demo           # stdio (IDE spawns this)
+MCP_MODE=http npx mcp-ticket-demo  # HTTP — opens /health /test /admin /mcp
+
+# Or clone and run
+git clone https://github.com/markusvankempen/mcp-ticket-demo
+cd mcp-ticket-demo/server && npm install && npm run http
+```
+
+Then open in a browser:
+
+| URL | What it shows |
+|---|---|
+| http://127.0.0.1:8787/health | Is the process alive? |
+| http://127.0.0.1:8787/test | Does a real create + search work? |
+| http://127.0.0.1:8787/admin | Auth mode, API keys, tool gates, observability |
+| http://127.0.0.1:8787/log | Call counters, error log, full call trace |
+| http://127.0.0.1:8787/tools | Tool inventory with scope and auth status |
+
+Login: `demo` / `demo`
+
+---
+
+## Add to your IDE (one line)
+
+**VS Code / GitHub Copilot** — `.vscode/mcp.json`:
+```json
+{
+  "servers": {
+    "mcp-ticket-demo": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["mcp-ticket-demo"],
+      "env": { "MCP_MODE": "stdio" }
+    }
+  }
+}
+```
+
+**Bob / Cursor / Windsurf** — `.bob/mcp.json` / `.cursor/mcp.json` / `.windsurf/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "mcp-ticket-demo": {
+      "command": "npx",
+      "args": ["mcp-ticket-demo"],
+      "env": { "MCP_MODE": "stdio" }
+    }
+  }
+}
+```
+
+Or install the [VS Code extension](https://marketplace.visualstudio.com/items?itemName=MarkusvanKempen.lf-mcp-summit-demo) and click **Register server with all IDEs** — it writes all four configs at once.
+
+---
+
+## 10 Tools
+
+| Tool | Scope | When to use | Lesson |
+|---|---|---|---|
+| `describe_server` | open | First call, and after any denial | Discovery beats guessing |
+| `search_tickets` | `read` | Find by status / requester / keyword | Intent name, not an HTTP wrapper |
+| `get_ticket` | `read` | You already have a `TCK-…` id | Instance fetch |
+| `create_ticket` | `write` | Open a ticket — **always pass `requester_email`** | Omit it → 201 + bot owns the ticket |
+| `add_comment` | `write` | Comment on a known ticket | Write tool; gated |
+| `close_ticket` | `write` | Resolve a ticket, optionally add resolution note | `destructiveHint: true, idempotentHint: true` |
+| `list_schemas` | `read` | Before any query | Discover the shape |
+| `get_schema` | `read` | After list, before query | Fields + filterable keys |
+| `run_query` | `read` | The one query tool | Replaces `query_tickets` / `query_assets` / … |
+| `lookup_customer` | `pii` | Customer record — phone is PII | Redacted without `pii` scope |
+
+---
+
+## 3 Resources
+
+Resources are **addressable and pinnable** — clients can subscribe and refresh. Tools are for agent loops.
+
+| URI | What it returns |
+|---|---|
+| `ticket://TCK-1001` | One ticket by id |
+| `tickets://open` | Live open ticket list (top 25) |
+| `schema://tickets` | Query schema shape (also `customers`, `assets`) |
+
+---
+
+## 5 Prompts
+
+User-facing prompts — the **user** picks these, the model executes them.
+
+| Prompt | Lesson it teaches |
+|---|---|
+| `search-open-tickets` | Find service-account scars in the live data |
+| `attribution-scar` | Create without `requester_email` → explain what broke |
+| `schema-discovery` | `list_schemas → get_schema → run_query` walkthrough |
+| `close-ticket-flow` | `add_comment` then `close_ticket` in sequence |
+| `diagnose-server` | `describe_server` — auth mode, scopes, available tools |
+
+---
+
+## Auth model
+
+```
+off    All tools open. No credential needed. Default for local dev.
+write  Read tools open. write + pii tools need a credential.
+all    Every tool call requires a credential.
+```
+
+Credentials: `Authorization: Bearer <api key>` over HTTP · `MCP_API_KEY` env var over stdio.
+
+Issue keys, set modes, toggle per-tool gates, and lock individual tools on `/admin`.
+A change broadcasts `tools/list_changed` to all connected clients immediately.
 
 ---
 
@@ -50,152 +168,55 @@ It is a support-ticketing sandbox that teaches the talk, not a Zendesk clone.
 
 ```
 mcp-ticket-demo/
-  server/          MCP server (stdio + HTTP)
-  extension/       VS Code / Cursor extension
-  docs/            Local, remote, extension, admin, talk map
-  Dockerfile       Code Engine image, WORKDIR /app
+  server/       MCP server — tools, resources, prompts, auth, HTTP pages
+  extension/    VS Code / Bob / Cursor / Windsurf control-plane extension
+  docs/         Walkthroughs, lessons learned, publishing guide
+  Dockerfile    UBI9 minimal, non-root USER 1001, WORKDIR /app
 ```
 
 ---
 
-## MCP server on npm
+## Docs
 
-The server is published as [`mcp-ticket-demo`](https://www.npmjs.com/package/mcp-ticket-demo) — no clone required.
-
-```bash
-# stdio (what the IDE spawns)
-npx mcp-ticket-demo
-
-# HTTP — /health /test /admin /mcp /sse
-MCP_MODE=http npx mcp-ticket-demo
-```
-
-## Ten-minute local path
-
-Timed on a clean machine. Node 18+.
-
-```bash
-cd mcp-ticket-demo/server
-npm install
-npm run http          # MCP_MODE=http PORT=8787
-```
-
-Then in another terminal:
-
-```bash
-curl -s http://127.0.0.1:8787/health?format=json
-curl -s http://127.0.0.1:8787/test?format=json
-```
-
-Browser:
-
-- http://127.0.0.1:8787/health — is it alive?
-- http://127.0.0.1:8787/test — does a real create + search work?
-- http://127.0.0.1:8787/admin — login `demo` / `demo`, set the auth mode, issue API keys, set a rate limit
-
-stdio (what the editor actually spawns):
-
-```bash
-cd mcp-ticket-demo/server
-npm run stdio
-```
-
-No port. No URL. The client talks over stdin/stdout.
-
-Load the extension (build with `npm run package` in `extension/`, or F5 in the Extension Development Host). The sidebar has Setup, Diagnose, Settings, and Chat. **Connect native stdio** writes the Node MCP. **Build & start local Podman** uses the same image as Code Engine. **Chat** files a prompt into the LLM. Reload the window after Connect.
-
-IBM Bob: [docs/BOB.md](docs/BOB.md). Open the repo root, MCP tab, **Use MCP Servers**.
-
-Full walkthroughs: [docs/LOCAL.md](docs/LOCAL.md) · [docs/EXTENSION.md](docs/EXTENSION.md) · [docs/REMOTE.md](docs/REMOTE.md) · [docs/ADMIN-AND-SECURITY.md](docs/ADMIN-AND-SECURITY.md) · [docs/BOB.md](docs/BOB.md)
-
-**Building your own MCP server?** → [docs/LESSONS-LEARNED.md](docs/LESSONS-LEARNED.md) — 15 lessons, war stories, and a pre-publish checklist grounded in building this server.
-
----
-
-## Tools the model sees
-
-Descriptions say **when** to use the tool, not just what it does. Empty results tell it not to retry.
-
-| Tool | When | Scope | Lesson |
-|---|---|---|---|
-| `describe_server` | First, and after any denial | open | Discovery beats guessing |
-| `search_tickets` | Find tickets by status / requester / keyword | `read` | Journey name, not an HTTP wrapper |
-| `create_ticket` | Open a ticket. Pass `requester_email`. | `write` | Omit it → 201 + service-account owner |
-| `add_comment` | Comment on a known ticket id | `write` | Write tool; gated |
-| `close_ticket` | Resolve a known ticket id | `write` | Write tool; gated |
-| `get_ticket` | You already have `TCK-…` | `read` | Instance fetch |
-| `list_schemas` | Before any query | `read` | Discover the shape |
-| `get_schema` | After list, before query | `read` | Fields + filters |
-| `run_query` | The one query tool | `read` | Replaces `query_tickets` / `query_assets` / … |
-| `lookup_customer` | Customer record. Phone is PII. | `pii` | Redacted without the `pii` scope |
-
-There is no `request(path, method, query, body)`. On purpose.
-
-Whether a scope is *enforced* depends on the auth mode set on `/admin`. The tools never
-disappear from `tools/list` — see [docs/ADMIN-AND-SECURITY.md](docs/ADMIN-AND-SECURITY.md).
-
----
-
-## HTTP surfaces (convention, not the spec)
-
-Say this out loud if someone asks: **`/health` `/test` `/admin` are mine. They are not in the MCP spec.**
-
-| Path | Question it answers |
+| Doc | What's in it |
 |---|---|
-| `GET /health` | Is the process up? |
-| `GET /test` | Can it create and find a ticket? |
-| `GET /admin` | Can an operator set the auth mode, issue keys, rate limit, and see attribution? |
-| `GET /sse` + `POST /messages` | Legacy remote transport (Cursor `mcp-proxy`) |
-| `ALL /mcp` | Streamable HTTP — current remote transport |
+| [docs/LESSONS-LEARNED.md](docs/LESSONS-LEARNED.md) | **15 lessons** building a real MCP server — war stories + pre-publish checklist |
+| [docs/LOCAL.md](docs/LOCAL.md) | Local stdio + HTTP walkthrough |
+| [docs/REMOTE.md](docs/REMOTE.md) | Code Engine deploy + the 0-tools-discovered repro |
+| [docs/ADMIN-AND-SECURITY.md](docs/ADMIN-AND-SECURITY.md) | Auth modes, API keys, tool gates |
+| [docs/BOB.md](docs/BOB.md) | IBM Bob specific setup |
+| [docs/PUBLISHING.md](docs/PUBLISHING.md) | npm + MCP Registry + VS Code Marketplace publish steps |
+| [server/README.md](server/README.md) | Full curl reference for every endpoint |
 
 ---
 
-## Environment
-
-See `.env.example`. Defaults are for the talk, not for production.
+## Environment variables
 
 | Variable | Default | What it does |
 |---|---|---|
-| `MCP_MODE` | `stdio` unless `--http` | Transport |
-| `PORT` | `8080` (compose uses `8787` locally) | HTTP only |
-| `ADMIN_USER` / `ADMIN_PASSWORD` | `demo` / `demo` | `/admin` login, and an `admin`-scoped MCP credential |
-| `AUTH_MODE` | `off` | `off`, `write`, or `all` — what needs a credential |
-| `API_KEY` / `API_KEY_SCOPES` | unset / `read,write` | Register one API key at boot |
-| `MCP_USERS` | unset | `"alice:secret:read,write"` — extra logins |
-| `RATE_LIMIT` / `RATE_LIMIT_WINDOW_MS` | `60` / `60000` | Calls per window, per caller |
-| `RATE_LIMIT_ENABLED` | `1` | Set `0` to turn rate limiting off |
-| `MCP_API_KEY` | unset | stdio only: the credential this process presents to itself |
-| `MCP_USERNAME` / `MCP_PASSWORD` | unset | stdio only: same, as a login |
-| `DEMO_TOKEN` | `demo-token` | Legacy single bearer token, still accepted |
-| `WRITE_TOOLS_LOCKED` | `0` | Legacy switch — same as `AUTH_MODE=write` |
-| `TENANT_ID` | unset | If set, writes also need `x-tenant-id` |
-
-On Code Engine those values live on the application, not in `mcp.json`.
-
----
-
-## Remote deploy
-
-IBM Cloud Code Engine, Toronto (`ca-tor`). Image builds from this folder so the process starts at `/app`.
-
-```bash
-# from repo root, after the image is in ICR
-# or use the Code Engine MCP: proc_build_push_deploy
-```
-
-Details and the "0 tools discovered" repro: [docs/REMOTE.md](docs/REMOTE.md).
+| `MCP_MODE` | `stdio` | `stdio` or `http` |
+| `PORT` | `8080` | HTTP only |
+| `HOST` | `127.0.0.1` | `0.0.0.0` inside container (set automatically) |
+| `AUTH_MODE` | `off` | `off` · `write` · `all` |
+| `ADMIN_USER` / `ADMIN_PASSWORD` | `demo` / `demo` | `/admin` login |
+| `API_KEY` / `API_KEY_SCOPES` | unset | Register one key at boot |
+| `MCP_API_KEY` | unset | stdio credential |
+| `MCP_USERNAME` / `MCP_PASSWORD` | unset | stdio basic auth |
+| `MCP_USERS` | unset | `"alice:secret:read,write"` extra logins |
+| `RATE_LIMIT` / `RATE_LIMIT_WINDOW_MS` | `60` / `60000` | Calls per window per caller |
+| `TENANT_ID` | unset | If set, writes need `x-tenant-id` header |
 
 ---
 
 ## Honest limits
 
-- Tickets live in memory. A new container revision starts the seed data over.
+- Tickets live in memory — a new container starts from seed data.
 - Admin auth is a session cookie, not SSO.
-- The demo token is a shared bearer string. Fine for a stage. Not fine for customer PII.
 - `/health` being green does not mean the ticket went to the right person.
-
-*No bug too small, no syntax too weird.*
 
 ---
 
-**Author:** Markus van Kempen · [mvankempen@ca.ibm.com](mailto:mvankempen@ca.ibm.com) · [markus.van.kempen@gmail.com](mailto:markus.van.kempen@gmail.com) · [markusvankempen.github.io](https://markusvankempen.github.io/) · [Linux Foundation Speaking Session](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401)
+**Author:** Markus van Kempen ·
+[markus.van.kempen@gmail.com](mailto:markus.van.kempen@gmail.com) ·
+[markusvankempen.github.io](https://markusvankempen.github.io/) ·
+[MCP Dev Summit Toronto talk](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401)
