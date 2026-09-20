@@ -322,7 +322,7 @@ export function testPage(result, host = "127.0.0.1:8787") {
 
   // helper so each block stays readable
   const mcp = (id, name, args) =>
-    `curl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{"jsonrpc":"2.0","id":${id},"method":"tools/call","params":{"name":"${name}","arguments":${JSON.stringify(args)}}}' | jq .`;
+    `curl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json, text/event-stream' \\\n  -d '{"jsonrpc":"2.0","id":${id},"method":"tools/call","params":{"name":"${name}","arguments":${JSON.stringify(args)}}}' | jq .`;
 
   const section = (title) => `<h4 style="margin:20px 0 6px;font-size:13px;color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:4px">${title}</h4>`;
 
@@ -332,7 +332,7 @@ export function testPage(result, host = "127.0.0.1:8787") {
     curlBlock(`# Smoke test — do tools actually work?\ncurl -s '${base}/test?format=json' | jq .`),
 
     section("Discovery"),
-    curlBlock(`# List all tools (MCP protocol)\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | jq .`),
+    curlBlock(`# List all tools (MCP protocol)\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json, text/event-stream' \\\n  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | jq .`),
     curlBlock(`# describe_server — auth mode, your scopes, rate limit, every tool\n${mcp(2, "describe_server", {})}`),
 
     section("Read tools"),
@@ -357,24 +357,24 @@ export function testPage(result, host = "127.0.0.1:8787") {
 
     section("PII-gated tool"),
     curlBlock(`# lookup_customer — phone REDACTED without pii scope\n${mcp(17, "lookup_customer", { email: "ada@example.com" })}`),
-    curlBlock(`# lookup_customer — with pii-scoped key (replace KEY)\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -H 'Authorization: Bearer mcpk_YOUR_PII_KEY' \\\n  -d '{"jsonrpc":"2.0","id":18,"method":"tools/call","params":{"name":"lookup_customer","arguments":{"email":"ada@example.com"}}}' | jq .`),
+    curlBlock(`# lookup_customer — with pii-scoped key (replace KEY)\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json, text/event-stream' \\\n  -H 'Authorization: Bearer mcpk_YOUR_PII_KEY' \\\n  -d '{"jsonrpc":"2.0","id":18,"method":"tools/call","params":{"name":"lookup_customer","arguments":{"email":"ada@example.com"}}}' | jq .`),
 
     section("Resources"),
-    curlBlock(`# resources/list — enumerate all addressable resources\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{"jsonrpc":"2.0","id":19,"method":"resources/list","params":{}}' | jq .`),
-    curlBlock(`# resources/read — read one ticket by URI\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{"jsonrpc":"2.0","id":20,"method":"resources/read","params":{"uri":"ticket://TCK-1001"}}' | jq .`),
-    curlBlock(`# resources/read — live open ticket list\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{"jsonrpc":"2.0","id":21,"method":"resources/read","params":{"uri":"tickets://open"}}' | jq .`),
-    curlBlock(`# resources/read — schema shape\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{"jsonrpc":"2.0","id":22,"method":"resources/read","params":{"uri":"schema://tickets"}}' | jq .`),
+    curlBlock(`# resources/list — enumerate all addressable resources\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json, text/event-stream' \\\n  -d '{"jsonrpc":"2.0","id":19,"method":"resources/list","params":{}}' | jq .`),
+    curlBlock(`# resources/read — read one ticket by URI\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json, text/event-stream' \\\n  -d '{"jsonrpc":"2.0","id":20,"method":"resources/read","params":{"uri":"ticket://TCK-1001"}}' | jq .`),
+    curlBlock(`# resources/read — live open ticket list\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json, text/event-stream' \\\n  -d '{"jsonrpc":"2.0","id":21,"method":"resources/read","params":{"uri":"tickets://open"}}' | jq .`),
+    curlBlock(`# resources/read — schema shape\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json, text/event-stream' \\\n  -d '{"jsonrpc":"2.0","id":22,"method":"resources/read","params":{"uri":"schema://tickets"}}' | jq .`),
 
     section("Prompts"),
-    curlBlock(`# prompts/list — enumerate MCP prompts\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{"jsonrpc":"2.0","id":23,"method":"prompts/list","params":{}}' | jq .`),
-    curlBlock(`# prompts/get — attribution-scar prompt\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{"jsonrpc":"2.0","id":24,"method":"prompts/get","params":{"name":"attribution-scar"}}' | jq .`),
+    curlBlock(`# prompts/list — enumerate MCP prompts\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json, text/event-stream' \\\n  -d '{"jsonrpc":"2.0","id":23,"method":"prompts/list","params":{}}' | jq .`),
+    curlBlock(`# prompts/get — attribution-scar prompt\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json, text/event-stream' \\\n  -d '{"jsonrpc":"2.0","id":24,"method":"prompts/get","params":{"name":"attribution-scar"}}' | jq .`),
 
     section("Authenticated calls (auth mode: write or all)"),
-    curlBlock(`# Set auth mode to write first:\n# curl -s -b cookie.txt -X POST '${base}/admin/security' \\\n#   -d 'authMode=write'\n\n# create_ticket with API key (replace KEY)\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -H 'Authorization: Bearer mcpk_YOUR_KEY' \\\n  -d '{"jsonrpc":"2.0","id":25,"method":"tools/call","params":{"name":"create_ticket","arguments":{"subject":"Authenticated","body":"Sent with a key.","requester_email":"ada@example.com"}}}' | jq .`),
-    curlBlock(`# Denied call — no credential (shows actionable error)\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{"jsonrpc":"2.0","id":26,"method":"tools/call","params":{"name":"create_ticket","arguments":{"subject":"Will fail","body":"No key.","requester_email":"ada@example.com"}}}' | jq .`),
+    curlBlock(`# Set auth mode to write first:\n# curl -s -b cookie.txt -X POST '${base}/admin/security' \\\n#   -d 'authMode=write'\n\n# create_ticket with API key (replace KEY)\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json, text/event-stream' \\\n  -H 'Authorization: Bearer mcpk_YOUR_KEY' \\\n  -d '{"jsonrpc":"2.0","id":25,"method":"tools/call","params":{"name":"create_ticket","arguments":{"subject":"Authenticated","body":"Sent with a key.","requester_email":"ada@example.com"}}}' | jq .`),
+    curlBlock(`# Denied call — no credential (shows actionable error)\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json, text/event-stream' \\\n  -d '{"jsonrpc":"2.0","id":26,"method":"tools/call","params":{"name":"create_ticket","arguments":{"subject":"Will fail","body":"No key.","requester_email":"ada@example.com"}}}' | jq .`),
 
     section("Naive mode demo (Demo 12)"),
-    curlBlock(`# 1. Login and get session cookie\ncurl -s -c /tmp/mcp_cookies.txt -X POST '${base}/admin/login' \\\n  -d 'username=demo&password=demo'\n\n# 2. Set auth mode to write\ncurl -s -b /tmp/mcp_cookies.txt -X POST '${base}/admin/security' \\\n  -d 'authMode=write'\n\n# 3. Enable naive mode\ncurl -s -b /tmp/mcp_cookies.txt -X POST '${base}/admin/naive-mode' \\\n  -d 'enabled=1'\n\n# 4. Call create_ticket — observe bare 403\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{"jsonrpc":"2.0","id":27,"method":"tools/call","params":{"name":"create_ticket","arguments":{"subject":"Naive test","body":"Bare 403.","requester_email":"ada@example.com"}}}' | jq .\n\n# 5. Disable naive mode — same call returns actionable error\ncurl -s -b /tmp/mcp_cookies.txt -X POST '${base}/admin/naive-mode' \\\n  -d 'enabled=0'\n\n# 6. Reset auth mode\ncurl -s -b /tmp/mcp_cookies.txt -X POST '${base}/admin/security' \\\n  -d 'authMode=off'`),
+    curlBlock(`# 1. Login and get session cookie\ncurl -s -c /tmp/mcp_cookies.txt -X POST '${base}/admin/login' \\\n  -d 'username=demo&password=demo'\n\n# 2. Set auth mode to write\ncurl -s -b /tmp/mcp_cookies.txt -X POST '${base}/admin/security' \\\n  -d 'authMode=write'\n\n# 3. Enable naive mode\ncurl -s -b /tmp/mcp_cookies.txt -X POST '${base}/admin/naive-mode' \\\n  -d 'enabled=1'\n\n# 4. Call create_ticket — observe bare 403\ncurl -s -X POST '${base}/mcp' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json, text/event-stream' \\\n  -d '{"jsonrpc":"2.0","id":27,"method":"tools/call","params":{"name":"create_ticket","arguments":{"subject":"Naive test","body":"Bare 403.","requester_email":"ada@example.com"}}}' | jq .\n\n# 5. Disable naive mode — same call returns actionable error\ncurl -s -b /tmp/mcp_cookies.txt -X POST '${base}/admin/naive-mode' \\\n  -d 'enabled=0'\n\n# 6. Reset auth mode\ncurl -s -b /tmp/mcp_cookies.txt -X POST '${base}/admin/security' \\\n  -d 'authMode=off'`),
   ].join("");
 
   return chrome({
@@ -539,6 +539,16 @@ function keysPanel(security, issuedKey) {
 function toolGatesPanel(security) {
   const gates = security.toolGates || {};
   const authOverrides = security.toolAuthOverrides || {};
+  const defaultArgs = {
+    describe_server: {}, search_tickets: { status: "open", limit: 5 },
+    create_ticket: { subject: "Test ticket", body: "Sent from admin panel.", requester_email: "ada@example.com" },
+    add_comment: { ticket_id: "TCK-1001", body: "A comment.", author: "support@example.com" },
+    close_ticket: { ticket_id: "TCK-1001", resolution: "Fixed.", closed_by: "support@example.com" },
+    get_ticket: { ticket_id: "TCK-1001" },
+    list_schemas: {}, get_schema: { name: "tickets" },
+    run_query: { schema: "tickets", filter: { status: "open" }, limit: 5 },
+    lookup_customer: { email: "ada@example.com" },
+  };
   const rows = Object.entries(gates).map(([name, enabled]) => {
     const locked = authOverrides[name] === true;
     const statusTag = enabled ? '<span class="tag">enabled</span>' : '<span class="tag coral">disabled</span>';
@@ -551,12 +561,15 @@ function toolGatesPanel(security) {
     const authBtn = locked
       ? `<form method="post" action="/admin/tool-auth" style="display:inline"><input type="hidden" name="tool" value="${escapeHtml(name)}"><input type="hidden" name="requireAuth" value="0"><button class="secondary" type="submit" style="padding:4px 9px;font-size:12px">Remove lock</button></form>`
       : `<form method="post" action="/admin/tool-auth" style="display:inline"><input type="hidden" name="tool" value="${escapeHtml(name)}"><input type="hidden" name="requireAuth" value="1"><button class="danger" type="submit" style="padding:4px 9px;font-size:12px">Lock</button></form>`;
+    const args = JSON.stringify(defaultArgs[name] || {}, null, 2);
+    const tryBtn = `<button type="button" class="secondary" style="padding:4px 9px;font-size:12px" onclick="openToolTry('${escapeHtml(name)}', ${JSON.stringify(args)})">▶ Try</button>`;
     return `<tr>
       <td class="mono">${escapeHtml(name)}</td>
       <td>${statusTag} ${gateBtn}</td>
       <td>${authTag} ${authBtn}</td>
+      <td>${tryBtn}</td>
     </tr>`;
-  }).join("") || "<tr><td colspan=3 class='muted'>No tools registered.</td></tr>";
+  }).join("") || "<tr><td colspan=4 class='muted'>No tools registered.</td></tr>";
   return `<div>
     <p class="muted" style="margin-bottom:10px">
       <strong>Disable</strong> removes a tool entirely (503 for any caller).<br>
@@ -564,7 +577,8 @@ function toolGatesPanel(security) {
       Locked tools respect the tool's natural scope (<code>read</code>, <code>write</code>, or <code>pii</code>).
     </p>
     <p class="muted">Saving a gate or auth-mode change broadcasts <code>notifications/tools/list_changed</code> to connected SSE and Streamable HTTP sessions. Clients that opened a session (Cursor, Bob) refresh <code>tools/list</code> without a reload. One-shot <code>POST /mcp</code> calls (curl) have no session — they see the new list on the next request.</p>
-    <div class="tbl-wrap"><table><thead><tr><th>Tool</th><th>Availability</th><th>Auth override</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Tool</th><th>Availability</th><th>Auth override</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${toolTryModal()}
   </div>`;
 }
 
@@ -620,6 +634,61 @@ function labPanel() {
   </div>`;
 }
 
+function toolTryModal() {
+  return `
+    <div id="toolTryModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center">
+      <div style="background:#fff;border-radius:12px;padding:24px 28px;width:min(540px,94vw);box-shadow:0 8px 32px rgba(0,0,0,.2);display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <h4 style="margin:0">▶ Try — <span id="tryToolName" style="font-weight:normal;color:var(--muted)"></span></h4>
+          <button type="button" class="secondary" style="padding:2px 8px;font-size:13px" onclick="closeToolTry()">✕</button>
+        </div>
+        <label style="font-size:12px;color:var(--muted);display:block">Arguments (JSON)
+          <textarea id="tryToolArgs" rows="6" style="width:100%;margin-top:4px;font-family:monospace;font-size:12px;border:1px solid var(--line);border-radius:6px;padding:8px;box-sizing:border-box;resize:vertical"></textarea>
+        </label>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button type="button" class="secondary" onclick="closeToolTry()">Cancel</button>
+          <button type="button" id="tryRunBtn" onclick="runToolTry()">Run</button>
+        </div>
+        <div id="tryResult" style="display:none">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Response</div>
+          <pre id="tryResultPre" style="background:#f7f8fa;border:1px solid var(--line);border-radius:6px;padding:10px;font-size:12px;overflow:auto;max-height:300px;margin:0"></pre>
+        </div>
+      </div>
+    </div>
+    <script>
+      var _tryTool = '';
+      function openToolTry(name, argsJson) {
+        _tryTool = name;
+        document.getElementById('tryToolName').textContent = name;
+        document.getElementById('tryToolArgs').value = argsJson;
+        document.getElementById('tryResult').style.display = 'none';
+        document.getElementById('tryResultPre').textContent = '';
+        document.getElementById('toolTryModal').style.display = 'flex';
+      }
+      function closeToolTry() { document.getElementById('toolTryModal').style.display = 'none'; }
+      document.getElementById('toolTryModal').addEventListener('click', function(e){ if(e.target===this) closeToolTry(); });
+      async function runToolTry() {
+        var btn = document.getElementById('tryRunBtn');
+        btn.disabled = true; btn.textContent = '…';
+        var args = {};
+        try { args = JSON.parse(document.getElementById('tryToolArgs').value || '{}'); } catch(e) { alert('Invalid JSON: ' + e.message); btn.disabled=false; btn.textContent='Run'; return; }
+        try {
+          var resp = await fetch('/mcp', { method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json, text/event-stream'}, body: JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:_tryTool,arguments:args}}) });
+          var json = await resp.json();
+          var resultDiv = document.getElementById('tryResult');
+          document.getElementById('tryResultPre').textContent = JSON.stringify(json, null, 2);
+          resultDiv.style.display = 'block';
+          var w = window.open('', '_blank');
+          if (w) { w.document.write('<html><head><title>' + _tryTool + ' result</title><style>body{font-family:monospace;font-size:13px;padding:20px;background:#f7f8fa;white-space:pre-wrap}</style></head><body>' + JSON.stringify(json, null, 2) + '</body></html>'); w.document.close(); }
+        } catch(e) {
+          document.getElementById('tryResultPre').textContent = 'Error: ' + e.message;
+          document.getElementById('tryResult').style.display = 'block';
+        }
+        btn.disabled=false; btn.textContent='Run';
+      }
+    </script>`;
+}
+
 function usersPanel(security) {
   const rows = (security.users || []).map((u) =>
     `<tr><td class="mono">${escapeHtml(u.username)}</td><td>${u.scopes.map((s) => `<span class="tag grey">${escapeHtml(s)}</span>`).join(" ")}</td></tr>`
@@ -627,6 +696,21 @@ function usersPanel(security) {
   return `<div>
     <p class="muted">Users come from the <code>MCP_USERS</code> environment variable — <code>"alice:secret:read,write"</code>. The admin login is always present with <code>admin</code> scope.</p>
     <div class="tbl-wrap"><table><thead><tr><th>Username</th><th>Scopes</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <h3 style="margin-top:24px">Create user session</h3>
+    <p class="muted" style="font-size:12px">Create a temporary API key with specific scopes below, or add a persistent user by restarting with the <code>MCP_USERS</code> env var set.</p>
+    <div class="panel" style="max-width:440px">
+      <h4 style="margin:0 0 12px">Issue API key for a user</h4>
+      <form method="post" action="/admin/keys" style="display:flex;flex-direction:column;gap:10px">
+        <label class="field" style="display:block">Label / username
+          <input name="label" placeholder="e.g. alice" style="width:100%;margin-top:4px">
+        </label>
+        <label class="field" style="display:block">Scopes (comma-separated)
+          <input name="scopes" value="read,write" placeholder="read,write,pii,admin" style="width:100%;margin-top:4px">
+        </label>
+        <div style="text-align:right"><button type="submit">Create key</button></div>
+      </form>
+    </div>
+    <p class="muted" style="font-size:11px;margin-top:12px">To add a durable username/password user, restart the server with:<br><code>MCP_USERS="alice:secret:read,write" MCP_MODE=http node src/index.js</code></p>
   </div>`;
 }
 
@@ -708,12 +792,30 @@ export function adminPage({ security, store, adminUser, info, issuedKey }) {
 
       <div id="adm-data" class="pane" data-group="admin">
 
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
-          <h3 style="margin:0">Tickets</h3>
-          <form method="post" action="/admin/reset" style="margin-left:auto" onsubmit="return confirm('Factory reset? All tickets will be replaced with the 3 seed tickets and the counter resets to TCK-1004.')">
-            <button class="danger" type="submit" style="padding:4px 10px;font-size:12px">🗑 Factory reset</button>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+        <h3 style="margin:0">Tickets</h3>
+        <button type="button" style="padding:4px 10px;font-size:12px" onclick="document.getElementById('createTicketModal').style.display='flex'">+ Create ticket</button>
+        <form method="post" action="/admin/reset" style="margin-left:auto" onsubmit="return confirm('Factory reset? All tickets will be replaced with the 3 seed tickets and the counter resets to TCK-1004.')">
+          <button class="danger" type="submit" style="padding:4px 10px;font-size:12px">🗑 Factory reset</button>
+        </form>
+      </div>
+
+      <!-- create ticket modal -->
+      <div id="createTicketModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center">
+        <div style="background:#fff;border-radius:12px;padding:24px 28px;width:min(480px,92vw);box-shadow:0 8px 32px rgba(0,0,0,.2)">
+          <h4 style="margin:0 0 14px">Create ticket</h4>
+          <form method="post" action="/admin/tickets/create">
+            <label class="field" style="display:block;margin-bottom:10px">Subject<input name="subject" placeholder="Short description" style="width:100%;margin-top:4px" required></label>
+            <label class="field" style="display:block;margin-bottom:10px">Body<textarea name="body" rows="3" placeholder="What happened?" style="width:100%;margin-top:4px;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:13px;resize:vertical" required></textarea></label>
+            <label class="field" style="display:block;margin-bottom:16px">Requester email<input name="requester_email" type="email" placeholder="customer@example.com (leave blank for attribution scar demo)" style="width:100%;margin-top:4px"></label>
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+              <button type="button" class="secondary" onclick="document.getElementById('createTicketModal').style.display='none'">Cancel</button>
+              <button type="submit">Create</button>
+            </div>
           </form>
         </div>
+      </div>
+      <script>document.getElementById('createTicketModal').addEventListener('click',function(e){if(e.target===this)this.style.display='none'});</script>
         <p class="muted" style="margin-bottom:8px;font-size:12px">Showing last 10. Use <strong>Edit</strong> to change subject / requester / status. <strong>Delete</strong> removes permanently. Factory reset restores the 3 seed tickets.</p>
         ${searchRow("ticketSearch", "ticketTable", "Filter tickets…")}
         <div class="tbl-wrap"><table id="ticketTable"><thead><tr><th>Id</th><th>Subject</th><th>Requester</th><th>Attribution</th><th>Status</th><th></th></tr></thead>
@@ -774,14 +876,27 @@ export function toolsPage(info) {
     if (gated.authMode === "write") return scope !== "read";
     return false;
   };
-  const rows = TOOL_CATALOG.map(([name, scope, purpose]) =>
-    `<tr>
+  const defaultArgs = {
+    describe_server: {}, search_tickets: { status: "open", limit: 5 },
+    create_ticket: { subject: "Test ticket", body: "Sent from /tools.", requester_email: "ada@example.com" },
+    add_comment: { ticket_id: "TCK-1001", body: "A comment.", author: "support@example.com" },
+    close_ticket: { ticket_id: "TCK-1001", resolution: "Fixed.", closed_by: "support@example.com" },
+    get_ticket: { ticket_id: "TCK-1001" },
+    list_schemas: {}, get_schema: { name: "tickets" },
+    run_query: { schema: "tickets", filter: { status: "open" }, limit: 5 },
+    lookup_customer: { email: "ada@example.com" },
+  };
+  const rows = TOOL_CATALOG.map(([name, scope, purpose]) => {
+    const args = JSON.stringify(defaultArgs[name] || {}, null, 2);
+    const tryBtn = `<button type="button" class="secondary" style="padding:3px 9px;font-size:12px" onclick="openToolTry('${escapeHtml(name)}', ${JSON.stringify(args)})">▶ Try</button>`;
+    return `<tr>
       <td class="mono">${escapeHtml(name)}</td>
       <td style="font-size:13px">${escapeHtml(purpose)}</td>
       <td><span class="tag${scope === "read" ? " grey" : scope === "pii" ? " amber" : " coral"}">${escapeHtml(scope)}</span></td>
       <td>${needsCredential(scope) ? '<span class="tag coral">credential required</span>' : '<span class="tag grey">open</span>'}</td>
-    </tr>`
-  ).join("");
+      <td>${tryBtn}</td>
+    </tr>`;
+  }).join("");
   return chrome({
     title: "tools · mcp-ticket-demo",
     tab: "/tools",
@@ -792,7 +907,8 @@ export function toolsPage(info) {
       <h2>${TOOL_CATALOG.length} tools.<br><span>No request(path, method).</span></h2>
       <p class="muted">Descriptions say <em>when</em> to use the tool. Auth mode on <a href="/admin">Admin</a> controls whether scopes are enforced. ${helpToggle("tools-info", "Tool calling architecture", "MCP exposes purposeful tools with rich schemas. Scopes are declared per tool; enforcement is a server-level switch.", { text: "Docs", url: "/help#tools" })}</p>
       ${searchRow("toolSearch", "toolTable", "Filter by name, scope, or description…")}
-      <div class="tbl-wrap"><table id="toolTable"><thead><tr><th>Tool</th><th>When to use</th><th>Scope</th><th>Right now</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="tbl-wrap"><table id="toolTable"><thead><tr><th>Tool</th><th>When to use</th><th>Scope</th><th>Right now</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+      ${toolTryModal()}
     `,
   });
 }

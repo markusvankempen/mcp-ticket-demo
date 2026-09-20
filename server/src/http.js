@@ -422,6 +422,17 @@ export async function startHttp({ store, security }) {
     res.redirect("/admin");
   });
 
+  app.post("/admin/tickets/create", requireAdmin, (req, res) => {
+    const { subject, body, requester_email } = req.body || {};
+    if (!subject || !body) {
+      if (wantsJson(req)) return res.status(400).json({ ok: false, error: "subject and body required" });
+      return res.redirect("/admin#adm-data");
+    }
+    const { ticket } = store.createTicket({ subject, body, requester_email: requester_email || undefined });
+    if (wantsJson(req)) return res.status(201).json({ ok: true, ticket });
+    res.redirect("/admin#adm-data");
+  });
+
   app.post("/admin/tickets/:id/delete", requireAdmin, (req, res) => {
     const ok = store.deleteTicket(req.params.id);
     if (wantsJson(req)) {
