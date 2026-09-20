@@ -203,6 +203,9 @@ function copyText(text, btn) {
     setTimeout(() => { btn.textContent = orig; }, 1500);
   });
 }
+function copyFromData(btn) {
+  copyText(btn.dataset.copy, btn);
+}
 // restore active tab from hash on load
 window.addEventListener('DOMContentLoaded', () => {
   const h = location.hash.slice(1);
@@ -281,8 +284,9 @@ function pageTabs(group, tabs) {
 
 function curlBlock(code) {
   const escaped = escapeHtml(code);
-  const raw = code.replace(/'/g, "\\'").replace(/\n/g, "\\n");
-  return `<div class="curl-block"><pre>${escaped}</pre><button class="copy-btn" onclick="copyText('${raw}',this)">copy</button></div>`;
+  // Store the raw text in a data attribute to avoid any quoting/escaping issues
+  // in onclick. The copyText helper reads it from the element's dataset.
+  return `<div class="curl-block"><pre>${escaped}</pre><button class="copy-btn" data-copy="${escapeHtml(code)}" onclick="copyFromData(this)">copy</button></div>`;
 }
 
 // ── Pages ─────────────────────────────────────────────────────────────────────
@@ -562,7 +566,7 @@ function toolGatesPanel(security) {
       ? `<form method="post" action="/admin/tool-auth" style="display:inline"><input type="hidden" name="tool" value="${escapeHtml(name)}"><input type="hidden" name="requireAuth" value="0"><button class="secondary" type="submit" style="padding:4px 9px;font-size:12px">Remove lock</button></form>`
       : `<form method="post" action="/admin/tool-auth" style="display:inline"><input type="hidden" name="tool" value="${escapeHtml(name)}"><input type="hidden" name="requireAuth" value="1"><button class="danger" type="submit" style="padding:4px 9px;font-size:12px">Lock</button></form>`;
     const args = JSON.stringify(defaultArgs[name] || {}, null, 2);
-    const tryBtn = `<button type="button" class="secondary" style="padding:4px 9px;font-size:12px" onclick="openToolTry('${escapeHtml(name)}', ${JSON.stringify(args)})">▶ Try</button>`;
+    const tryBtn = `<button type="button" class="secondary" style="padding:4px 9px;font-size:12px" data-tool="${escapeHtml(name)}" data-args="${escapeHtml(args)}" onclick="openToolTryFromData(this)">▶ Try</button>`;
     return `<tr>
       <td class="mono">${escapeHtml(name)}</td>
       <td>${statusTag} ${gateBtn}</td>
@@ -664,6 +668,9 @@ function toolTryModal() {
         document.getElementById('tryResult').style.display = 'none';
         document.getElementById('tryResultPre').textContent = '';
         document.getElementById('toolTryModal').style.display = 'flex';
+      }
+      function openToolTryFromData(btn) {
+        openToolTry(btn.dataset.tool, btn.dataset.args);
       }
       function closeToolTry() { document.getElementById('toolTryModal').style.display = 'none'; }
       document.getElementById('toolTryModal').addEventListener('click', function(e){ if(e.target===this) closeToolTry(); });
@@ -888,7 +895,7 @@ export function toolsPage(info) {
   };
   const rows = TOOL_CATALOG.map(([name, scope, purpose]) => {
     const args = JSON.stringify(defaultArgs[name] || {}, null, 2);
-    const tryBtn = `<button type="button" class="secondary" style="padding:3px 9px;font-size:12px" onclick="openToolTry('${escapeHtml(name)}', ${JSON.stringify(args)})">▶ Try</button>`;
+    const tryBtn = `<button type="button" class="secondary" style="padding:3px 9px;font-size:12px" data-tool="${escapeHtml(name)}" data-args="${escapeHtml(args)}" onclick="openToolTryFromData(this)">▶ Try</button>`;
     return `<tr>
       <td class="mono">${escapeHtml(name)}</td>
       <td style="font-size:13px">${escapeHtml(purpose)}</td>
