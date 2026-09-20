@@ -1037,7 +1037,8 @@ export function logPage({ security, store }) {
   });
 }
 
-export function helpPage() {
+export function helpPage(host = "127.0.0.1:8787") {
+  const base = `http://${host}`;
   return chrome({
     title: "docs · mcp-ticket-demo",
     tab: "/help",
@@ -1063,7 +1064,7 @@ export function helpPage() {
           <p>stdio for IDEs (VS Code, Cursor, Bob, Windsurf) — no port, no URL, no browser. HTTP for the dashboard pages, the <code>/mcp</code> endpoint, and cloud deploys.</p>
           <pre>cd server && npm install
 # HTTP — opens /health /test /admin /tools /log /help /mcp
-MCP_MODE=http PORT=8787 node src/index.js
+MCP_MODE=http PORT=8787 node src/index.js   # default port
 # stdio — what the IDE spawns as a child process
 MCP_MODE=stdio node src/index.js</pre>
         </div>
@@ -1086,15 +1087,15 @@ MCP_MODE=stdio node src/index.js</pre>
         <div class="panel">
           <h4>3. Verify</h4>
           <pre># Is it alive?
-curl http://127.0.0.1:8787/health?format=json | jq .ok
+curl ${base}/health?format=json | jq .ok
 
 # Do tools actually work?
-curl http://127.0.0.1:8787/test?format=json | jq .ok
+curl ${base}/test?format=json | jq .ok
 
 # First MCP call — discover the server
-curl -s -X POST http://127.0.0.1:8787/mcp \\
+curl -s -X POST ${base}/mcp \\
   -H "Content-Type: application/json" \\
-  -H "Accept: application/json" \\
+  -H "Accept: application/json, text/event-stream" \\
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"describe_server","arguments":{}}}' \\
   | jq .result</pre>
         </div>
@@ -1106,13 +1107,13 @@ curl -s -X POST http://127.0.0.1:8787/mcp \\
 
         <div class="panel">
           <h4>Demo 1 — Health check: is it alive?</h4>
-          <p>Open <a href="/health">/health</a> — or: <code>curl http://127.0.0.1:8787/health?format=json</code></p>
+          <p>Open <a href="/health">/health</a> — or: <code>curl ${base}/health?format=json</code></p>
           <p class="muted">Lesson: <em>A 200 means the process is running, not that a tool call will succeed.</em></p>
         </div>
 
         <div class="panel">
           <h4>Demo 2 — Smoke test: does it actually work?</h4>
-          <p>Open <a href="/test">/test</a> — or: <code>curl http://127.0.0.1:8787/test?format=json</code></p>
+          <p>Open <a href="/test">/test</a> — or: <code>curl ${base}/test?format=json</code></p>
           <p class="muted">Lesson: <em>/test runs every read-only tool and scores the payloads, not just HTTP 200. Green /health + failing /test means the process started but tools don't work.</em></p>
         </div>
 
@@ -1250,8 +1251,8 @@ MCP_API_KEY=mcpk_... node src/index.js</pre>
         <div class="panel">
           <h4>JSON format</h4>
           <p>Add <code>?format=json</code> to /health and /test for machine-readable output, or set <code>Accept: application/json</code>.</p>
-          <pre>curl http://127.0.0.1:8787/health?format=json | jq .
-curl http://127.0.0.1:8787/test?format=json | jq .ok</pre>
+          <pre>curl ${base}/health?format=json | jq .
+curl ${base}/test?format=json | jq .ok</pre>
         </div>
       </div>
 

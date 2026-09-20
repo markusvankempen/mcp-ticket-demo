@@ -272,8 +272,8 @@ export async function startHttp({ store, security }) {
     }));
   });
 
-  app.get("/help", (_req, res) => {
-    res.type("html").send(helpPage());
+  app.get("/help", (req, res) => {
+    res.type("html").send(helpPage(req.headers.host || `127.0.0.1:${Number(process.env.PORT || 8787)}`));
   });
 
   app.get("/admin", requireAdmin, (req, res) => {
