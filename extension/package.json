@@ -74,7 +74,7 @@
   ],
   "main": "./src/extension.js",
   "scripts": {
-    "package": "vsce package --no-dependencies --allow-star-activation"
+    "package": "npx --yes @vscode/vsce package --no-dependencies --allow-star-activation"
   },
   "contributes": {
     "viewsContainers": {
