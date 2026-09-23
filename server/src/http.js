@@ -519,6 +519,19 @@ export async function startHttp({ store, security }) {
     res.redirect("/admin");
   });
 
+  app.post("/admin/users/create", requireAdmin, (req, res) => {
+    const { username, password, scopes } = req.body || {};
+    const result = security.addUser(username, password, scopes);
+    if (wantsJson(req)) return res.status(result.ok ? 201 : 400).json(result);
+    res.redirect("/admin#adm-users");
+  });
+
+  app.post("/admin/users/:username/delete", requireAdmin, (req, res) => {
+    const result = security.deleteUser(req.params.username);
+    if (wantsJson(req)) return res.status(result.ok ? 200 : 404).json(result);
+    res.redirect("/admin#adm-users");
+  });
+
   // Legacy remote transport — what Cursor mcp-proxy and many enterprise clients still speak.
   app.get("/sse", async (req, res) => {
     applyCors(req, res);

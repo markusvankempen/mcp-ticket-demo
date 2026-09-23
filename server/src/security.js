@@ -531,6 +531,26 @@ export function createSecurity({ log } = {}) {
       return this.snapshot();
     },
 
+    addUser(username, password, scopes) {
+      const u = String(username || "").trim().toLowerCase();
+      const p = String(password || "").trim();
+      if (!u || !p) return { ok: false, error: "username and password required" };
+      if (u === state.adminUser) return { ok: false, error: "cannot overwrite the admin user" };
+      const s = normalizeScopes(String(scopes || "read,write"), ["read", "write"]);
+      users.set(u, { username: u, password: p, scopes: s });
+      auditFn({ tool: "admin.user", outcome: `created user ${u} scopes=${s.join(",")}` });
+      return { ok: true };
+    },
+
+    deleteUser(username) {
+      const u = String(username || "").trim().toLowerCase();
+      if (u === state.adminUser) return { ok: false, error: "cannot delete the admin user" };
+      const existed = users.has(u);
+      users.delete(u);
+      if (existed) auditFn({ tool: "admin.user", outcome: `deleted user ${u}` });
+      return { ok: existed };
+    },
+
     issueKey,
 
     revokeKey(id) {

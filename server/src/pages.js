@@ -697,27 +697,53 @@ function toolTryModal() {
 }
 
 function usersPanel(security) {
-  const rows = (security.users || []).map((u) =>
-    `<tr><td class="mono">${escapeHtml(u.username)}</td><td>${u.scopes.map((s) => `<span class="tag grey">${escapeHtml(s)}</span>`).join(" ")}</td></tr>`
-  ).join("") || "<tr><td colspan=2 class='muted'>No extra users. Set <code>MCP_USERS</code> env var.</td></tr>";
+  const adminUser = security.users?.find?.(u => u.scopes?.includes("admin"))?.username || "demo";
+  const rows = (security.users || []).map((u) => {
+    const isAdmin = u.scopes?.includes("admin");
+    const deleteBtn = isAdmin
+      ? `<span class="tag grey" style="font-size:11px">protected</span>`
+      : `<form method="post" action="/admin/users/${escapeHtml(u.username)}/delete" style="display:inline" onsubmit="return confirm('Delete user ${escapeHtml(u.username)}?')"><button class="danger" type="submit" style="padding:3px 8px;font-size:12px">Delete</button></form>`;
+    return `<tr>
+      <td class="mono">${escapeHtml(u.username)}</td>
+      <td>${u.scopes.map((s) => `<span class="tag grey">${escapeHtml(s)}</span>`).join(" ")}</td>
+      <td>${deleteBtn}</td>
+    </tr>`;
+  }).join("") || "<tr><td colspan=3 class='muted'>No users yet.</td></tr>";
   return `<div>
-    <p class="muted">Users come from the <code>MCP_USERS</code> environment variable — <code>"alice:secret:read,write"</code>. The admin login is always present with <code>admin</code> scope.</p>
-    <div class="tbl-wrap"><table><thead><tr><th>Username</th><th>Scopes</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <h3 style="margin-top:24px">Create user session</h3>
-    <p class="muted" style="font-size:12px">Create a temporary API key with specific scopes below, or add a persistent user by restarting with the <code>MCP_USERS</code> env var set.</p>
-    <div class="panel" style="max-width:440px">
-      <h4 style="margin:0 0 12px">Issue API key for a user</h4>
-      <form method="post" action="/admin/keys" style="display:flex;flex-direction:column;gap:10px">
-        <label class="field" style="display:block">Label / username
-          <input name="label" placeholder="e.g. alice" style="width:100%;margin-top:4px">
-        </label>
-        <label class="field" style="display:block">Scopes (comma-separated)
-          <input name="scopes" value="read,write" placeholder="read,write,pii,admin" style="width:100%;margin-top:4px">
-        </label>
-        <div style="text-align:right"><button type="submit">Create key</button></div>
-      </form>
+    <p class="muted">Users are stored in memory for the session. They can authenticate with HTTP Basic (<code>Authorization: Basic base64(user:pass)</code>) over MCP or via the admin login. The built-in admin user is always present.</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Username</th><th>Scopes</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+
+    <div class="grid2" style="margin-top:24px">
+      <div class="panel">
+        <h4 style="margin:0 0 12px">Create user</h4>
+        <form method="post" action="/admin/users/create" style="display:flex;flex-direction:column;gap:10px">
+          <label class="field" style="display:block">Username
+            <input name="username" placeholder="e.g. alice" autocomplete="off" style="width:100%;margin-top:4px" required>
+          </label>
+          <label class="field" style="display:block">Password
+            <input name="password" type="password" placeholder="••••••••" autocomplete="new-password" style="width:100%;margin-top:4px" required>
+          </label>
+          <label class="field" style="display:block">Scopes (comma-separated)
+            <input name="scopes" value="read,write" placeholder="read,write,pii,admin" style="width:100%;margin-top:4px">
+          </label>
+          <div style="text-align:right"><button type="submit">Create user</button></div>
+        </form>
+        <p class="muted" style="font-size:11px;margin-top:10px">Users are in-memory only. They are cleared on server restart. To persist users across restarts set <code>MCP_USERS="alice:secret:read,write"</code>.</p>
+      </div>
+      <div class="panel">
+        <h4 style="margin:0 0 12px">Issue API key</h4>
+        <form method="post" action="/admin/keys" style="display:flex;flex-direction:column;gap:10px">
+          <label class="field" style="display:block">Label
+            <input name="label" placeholder="e.g. alice-key" style="width:100%;margin-top:4px">
+          </label>
+          <label class="field" style="display:block">Scopes (comma-separated)
+            <input name="scopes" value="read,write" placeholder="read,write,pii,admin" style="width:100%;margin-top:4px">
+          </label>
+          <div style="text-align:right"><button type="submit">Issue key</button></div>
+        </form>
+        <p class="muted" style="font-size:11px;margin-top:10px">Keys use Bearer token auth (<code>Authorization: Bearer mcpk_…</code>). Revoke them from the Security tab.</p>
+      </div>
     </div>
-    <p class="muted" style="font-size:11px;margin-top:12px">To add a durable username/password user, restart the server with:<br><code>MCP_USERS="alice:secret:read,write" MCP_MODE=http node src/index.js</code></p>
   </div>`;
 }
 
