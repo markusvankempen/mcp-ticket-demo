@@ -6,23 +6,16 @@
     "url": "https://github.com/markusvankempen/mcp-ticket-demo",
     "source": "github"
   },
-  "version": "1.7.1",
+  "version": "1.9.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "mcp-ticket-demo",
-      "version": "1.7.1",
+      "version": "1.9.0",
       "transport": {
         "type": "stdio"
       },
       "environmentVariables": [
-        {
-          "name": "MCP_MODE",
-          "description": "Transport mode. Use 'stdio' for IDE child process, 'http' for HTTP server.",
-          "isRequired": false,
-          "isSecret": false,
-          "format": "string"
-        },
         {
           "name": "MCP_API_KEY",
           "description": "API key for authenticated tool calls. Issue one on /admin → API Keys. Required when AUTH_MODE=write or AUTH_MODE=all.",
@@ -36,62 +29,17 @@
           "isRequired": false,
           "isSecret": false,
           "format": "string"
-        }
-      ]
-    },
-    {
-      "registryType": "npm",
-      "identifier": "mcp-ticket-demo",
-      "version": "1.7.1",
-      "transport": {
-        "type": "streamable-http"
-      },
-      "environmentVariables": [
-        {
-          "name": "MCP_MODE",
-          "description": "Must be 'http' for this transport.",
-          "isRequired": true,
-          "isSecret": false,
-          "format": "string"
         },
         {
-          "name": "PORT",
-          "description": "Listen port. Default 8080 (8787 in npm run http).",
-          "isRequired": false,
-          "isSecret": false,
-          "format": "string"
-        },
-        {
-          "name": "HOST",
-          "description": "Bind address. Default 127.0.0.1 on a laptop; 0.0.0.0 in a container.",
-          "isRequired": false,
-          "isSecret": false,
-          "format": "string"
-        },
-        {
-          "name": "MCP_API_KEY",
-          "description": "API key for authenticated tool calls. Required when AUTH_MODE=write or AUTH_MODE=all.",
+          "name": "MCP_USERS",
+          "description": "Extra username/password users: 'alice:secret:read,write'. Comma-separated, colon-delimited.",
           "isRequired": false,
           "isSecret": true,
           "format": "string"
         },
         {
-          "name": "AUTH_MODE",
-          "description": "Authentication mode: off (default), write, or all.",
-          "isRequired": false,
-          "isSecret": false,
-          "format": "string"
-        },
-        {
-          "name": "ADMIN_PASSWORD",
-          "description": "Required on a public bind. Laptop default demo/demo is disabled when HOST=0.0.0.0 or in a container.",
-          "isRequired": false,
-          "isSecret": true,
-          "format": "string"
-        },
-        {
-          "name": "CORS_ORIGINS",
-          "description": "Comma-separated extra Origin values allowed on /mcp. Localhost and same-host are always allowed.",
+          "name": "RATE_LIMIT",
+          "description": "Max tool calls per window per caller. Default 60.",
           "isRequired": false,
           "isSecret": false,
           "format": "string"
