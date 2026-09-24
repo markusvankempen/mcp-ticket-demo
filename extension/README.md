@@ -4,14 +4,14 @@
 [![Open VSX](https://img.shields.io/open-vsx/v/markusvankempen/lf-mcp-summit-demo?style=for-the-badge&label=Open%20VSX)](https://open-vsx.org/extension/markusvankempen/lf-mcp-summit-demo)
 [![npm](https://img.shields.io/npm/v/mcp-ticket-demo?style=for-the-badge&logo=npm&logoColor=white&label=npm)](https://www.npmjs.com/package/mcp-ticket-demo)
 [![npm downloads](https://img.shields.io/npm/dm/mcp-ticket-demo?style=for-the-badge&logo=npm&logoColor=white&label=downloads)](https://www.npmjs.com/package/mcp-ticket-demo)
-[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](https://github.com/markusvankempen/mcp-ticket-demo/blob/main/LICENSE)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=for-the-badge)](https://github.com/markusvankempen/mcp-ticket-demo/blob/main/LICENSE)
 [![GitHub](https://img.shields.io/badge/GitHub-mcp--ticket--demo-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/markusvankempen/mcp-ticket-demo)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![MCP](https://img.shields.io/badge/MCP-Protocol-5A29E4?style=for-the-badge)](https://modelcontextprotocol.io/)
 
 A **control plane and test harness** for the [mcp-ticket-demo](https://www.npmjs.com/package/mcp-ticket-demo) MCP server. The extension manages the server lifecycle, writes IDE config, runs a step-by-step diagnostic, scores tool calls end-to-end, and fires canned prompts directly into your LLM chat — all from a sidebar in VS Code, IBM Bob, Cursor, or Windsurf.
 
-The bundled MCP server (`mcp-ticket-demo`) is a **fully functional support-ticketing backend** with 10 real tools, three auth modes, API key management, per-tool gates, rate limiting, and a live `/admin` dashboard. It runs as a local stdio child process, a local HTTP server, a Podman container, or a shared Code Engine endpoint — the extension switches between them without touching a config file by hand.
+The bundled MCP server (`mcp-ticket-demo`) is a **fully functional support-ticketing backend** with 10 real tools, three auth modes, API key management, per-tool gates, rate limiting, and a live `/admin` dashboard. It runs as a local stdio child process, a local HTTP server, a Podman container, or a public HTTPS host (Render or Code Engine). The Setup panel picks which HTTP host Diagnose and CRUD use, and can write that URL into `mcp.json` for chat.
 
 > Companion to [**MCP as a Platform**](https://events.linuxfoundation.org/mcp-dev-summit-toronto/program/schedule/?id=1282401) · MCP Dev Summit Toronto · Oct 2026 — every lesson in the talk is a live, reproducible demo in this repo. · [Talk slides](https://markusvankempen.github.io/linuxfoundation-mcp-dev-summit/#1)
 
@@ -24,7 +24,7 @@ Extension (VS Code / Bob / Cursor / Windsurf)   ← control plane
 ├── Setup & Diagnostics panel
 │     ├── Step-by-step diagnostic (workspace → config → health → tool call)
 │     ├── MCP CRUD test  (create → get → comment → close → search)
-│     ├── Connection switcher  (stdio / HTTP / Podman / Code Engine)
+│     ├── Connection switcher  (stdio / HTTP / Podman / Render / Code Engine)
 │     └── Send-to-chat prompts  (fire lesson scenarios into the active LLM)
 ├── Resources tree  (server status, connection mode, quick links)
 └── Status-bar quick menu
@@ -71,6 +71,10 @@ MCP Server  (npm: mcp-ticket-demo)              ← what the extension manages
    │  Transport C — Podman HTTP                    │
    │    same image as Code Engine                  │
    │    podman run -p 8787:8080 mcp-ticket-demo    │
+   │                                               │
+   │  Transport D — Remote HTTP                     │
+   │    Render or Code Engine  (public HTTPS)      │
+   │    POST /mcp · GET /sse · GET /health         │
    └───────────────────────────────────────────────┘
 ```
 
@@ -100,6 +104,21 @@ cd mcp-ticket-demo/server && npm install
 
 Open the repo root in VS Code / Bob. The extension auto-detects
 `server/src/index.js` and all connection commands use it directly.
+
+### Option 3 — Public Render host (no local server)
+
+A live instance is at **[https://mcp-ticket-demo.onrender.com/health](https://mcp-ticket-demo.onrender.com/health)**. That is a **second** ticket store from laptop stdio — empty after a Render sleep/restart.
+
+1. Open the **Setup** tab.
+2. **Active target** → `remote HTTP · Render / Code Engine`.
+3. **Hosting URL** → `https://mcp-ticket-demo.onrender.com` (no `/health`).
+4. Click **Use this URL in mcp.json**.
+5. Reload the window so Copilot / Chat sees `mcp-ticket-demo-remote`.
+6. For writes: sign in to [`/admin`](https://mcp-ticket-demo.onrender.com/admin) (Render generated `ADMIN_PASSWORD`), issue an API key, paste it in Settings → `summitMcp.apiKey`.
+
+**Diagnose and CRUD** use the host in **Active target** (header: *Probing …*). **Chat** uses whatever is in `mcp.json`. They can point at different processes.
+
+**Deploy your own:** **Deploy on Render** opens the [Blueprint](https://dashboard.render.com/blueprint/new?repo=https%3A%2F%2Fgithub.com%2Fmarkusvankempen%2Fmcp-ticket-demo) for this repo (`render.yaml` = Node in `server/`, not the UBI Docker image). Optional **Render API key** in Settings lets Deploy look up the live URL. The **?** next to the button jumps to that field.
 
 ---
 
@@ -139,17 +158,19 @@ but you can also paste them manually.
 }
 ```
 
-**Remote Code Engine (Streamable HTTP)**
+**Remote HTTP (Render or Code Engine)**
 ```json
 {
   "servers": {
     "mcp-ticket-demo-remote": {
       "type": "sse",
-      "url": "https://<your-host>.codeengine.appdomain.cloud/sse"
+      "url": "https://mcp-ticket-demo.onrender.com/sse"
     }
   }
 }
 ```
+
+Same shape for Code Engine — swap the host for `https://<app>.codeengine.appdomain.cloud/sse`.
 
 ---
 
@@ -174,13 +195,13 @@ but you can also paste them manually.
 }
 ```
 
-**Remote Code Engine (Streamable HTTP)**
+**Remote HTTP (Render or Code Engine)**
 ```json
 {
   "mcpServers": {
     "mcp-ticket-demo-remote": {
       "type": "streamable-http",
-      "url": "https://<your-host>.codeengine.appdomain.cloud/mcp",
+      "url": "https://mcp-ticket-demo.onrender.com/mcp",
       "alwaysAllow": [
         "describe_server", "search_tickets", "create_ticket",
         "add_comment", "close_ticket", "get_ticket", "list_schemas",
@@ -209,13 +230,13 @@ but you can also paste them manually.
 }
 ```
 
-**Remote Code Engine (via uvx mcp-proxy shim)**
+**Remote HTTP (via uvx mcp-proxy shim)**
 ```json
 {
   "mcpServers": {
     "mcp-ticket-demo-remote": {
       "command": "uvx",
-      "args": ["mcp-proxy", "https://<your-host>.codeengine.appdomain.cloud/sse"]
+      "args": ["mcp-proxy", "https://mcp-ticket-demo.onrender.com/sse"]
     }
   }
 }
@@ -238,13 +259,13 @@ but you can also paste them manually.
 }
 ```
 
-**Remote Code Engine (Streamable HTTP)**
+**Remote HTTP (Streamable HTTP)**
 ```json
 {
   "mcpServers": {
     "mcp-ticket-demo-remote": {
       "type": "streamable-http",
-      "url": "https://<your-host>.codeengine.appdomain.cloud/mcp"
+      "url": "https://mcp-ticket-demo.onrender.com/mcp"
     }
   }
 }
@@ -317,8 +338,10 @@ Add to any `env` block for stdio, or add a `headers` block for HTTP:
 │ Podman HTTP          │ Container maps port 8787 → 8080.                  │
 │                      │ IDE connects to http://127.0.0.1:8787/mcp.        │
 ├──────────────────────┼───────────────────────────────────────────────────┤
-│ Remote Code Engine   │ Public HTTPS endpoint on IBM Cloud.               │
-│                      │ IDE connects to https://<host>/mcp or /sse.       │
+│ Remote HTTP          │ Public HTTPS — Render or Code Engine.             │
+│                      │ IDE: /sse (VS Code) or /mcp (Bob / Windsurf).     │
+│                      │ Example: https://mcp-ticket-demo.onrender.com     │
+│                      │ Diagnose/CRUD use summitMcp.probeTarget + URL.    │
 └──────────────────────┴───────────────────────────────────────────────────┘
 ```
 
@@ -505,7 +528,9 @@ search_tickets          Real call returns TCK- ids
 ```
 LF MCP Demo: Discover mcp.json          Scan workspace for existing configs
 LF MCP Demo: Connect native stdio        Write node entry to all client configs
-LF MCP Demo: Connect remote Code Engine  Prompt for URL, write SSE/HTTP entry
+LF MCP Demo: Connect remote HTTP         Prompt for hosting URL, write SSE/HTTP entry
+LF MCP Demo: Use hosting URL in mcp.json Write remote URL + probe Diagnose/CRUD there
+LF MCP Demo: Deploy on Render            Open Render Blueprint deploy for this repo
 LF MCP Demo: Connect Podman stdio        Write podman run -i entry
 LF MCP Demo: Connect Podman HTTP         Write podman HTTP entry
 LF MCP Demo: Build & start local Podman  podman build + podman run in one step
@@ -538,9 +563,14 @@ Refresh                                  Reload the Resources tree
 
 ```
 summitMcp.probeTarget      auto | native-http | podman | remote
-                           Which surface /health and Diagnose probe.
+                           Which HTTP host Diagnose, CRUD, and /health use.
+                           Set on Setup → Active target.
 
-summitMcp.remoteUrl        Public Code Engine URL (no trailing slash).
+summitMcp.remoteUrl        Public hosting URL, no path
+                           (https://mcp-ticket-demo.onrender.com).
+
+summitMcp.renderApiKey     Render account API key. Deploy on Render uses it
+                           to find the live mcp-ticket-demo service URL.
 
 summitMcp.localHttpUrl     Local HTTP URL. Default: http://127.0.0.1:8787
 
@@ -570,7 +600,7 @@ summitMcp.authMode         off | write | all
 
 ---
 
-## HTTP endpoints (native HTTP and Podman)
+## HTTP endpoints (local HTTP, Podman, and Render)
 
 ```
 GET  /health         Liveness. Version, tool count. `cwd` only on localhost.
@@ -643,7 +673,7 @@ Lesson 3 — Schema discovery over tool proliferation
 Lesson 4 — Laptop paths don't survive a container boundary
   Native stdio uses cwd: serverDir() (absolute, local).
   Podman stdio uses the image — no absolute path.
-  Code Engine uses the image — no local filesystem.
+  Code Engine and Render use the image or a public process — no laptop cwd.
   The "mcp.json worked yesterday, 404 today" seed ticket (TCK-1003)
   illustrates the hostname rotation problem on managed platforms.
 ```

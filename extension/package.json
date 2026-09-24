@@ -2,7 +2,7 @@
   "name": "lf-mcp-summit-demo",
   "displayName": "LF MCP Demo",
   "description": "Control plane and test harness for the mcp-ticket-demo MCP server — lifecycle management, step-by-step diagnostics, end-to-end CRUD test, send-to-chat prompts, and one-click IDE config for VS Code, Bob, Cursor, and Windsurf.",
-  "version": "1.7.5",
+  "version": "1.8.0",
   "license": "Apache-2.0",
   "keywords": [
     "mcp",
