@@ -7,3 +7,7 @@ extension/node_modules
 
 # Internal documents — never publish to repo
 Internal/
+
+# Source code excluded from the public branch
+server/src/
+extension/src/

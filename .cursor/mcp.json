@@ -9,6 +9,13 @@
       "env": {
         "MCP_MODE": "stdio"
       }
+    },
+    "mcp-ticket-demo-remote": {
+      "command": "uvx",
+      "args": [
+        "mcp-proxy",
+        "https://mcp-ticket-demo.onrender.com/sse"
+      ]
     }
   }
 }

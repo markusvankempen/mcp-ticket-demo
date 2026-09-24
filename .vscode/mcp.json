@@ -10,6 +10,10 @@
       "env": {
         "MCP_MODE": "stdio"
       }
+    },
+    "mcp-ticket-demo-remote": {
+      "type": "sse",
+      "url": "https://mcp-ticket-demo.onrender.com/sse"
     }
   }
 }

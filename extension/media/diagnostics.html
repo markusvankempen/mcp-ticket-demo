@@ -63,6 +63,12 @@
     button.btn.danger { color: #fca5a5; }
     .row { display: flex; gap: 6px; }
     .row .btn { flex: 1; }
+    .row .btn.q {
+      flex: 0 0 36px; width: 36px; padding: 8px 0; text-align: center;
+      font-weight: 700; color: var(--accent);
+    }
+    a.link { color: var(--accent); cursor: pointer; text-decoration: none; }
+    a.link:hover { text-decoration: underline; }
     label { display: block; margin: 8px 0 4px; color: var(--muted2); font-size: 11px; }
     input, select, textarea {
       width: 100%; padding: 7px 8px; border-radius: 6px; border: 1px solid var(--line2);
@@ -108,6 +114,7 @@
       <button class="tab" data-tab="diag">Diagnose</button>
       <button class="tab" data-tab="mcpTest">MCP Test</button>
       <button class="tab" data-tab="settings">Settings</button>
+      <button class="tab" data-tab="docs">Docs</button>
       <button class="tab" data-tab="chat">Chat</button>
     </nav>
   </header>
@@ -115,7 +122,7 @@
     <div class="stats">
       <div class="stat"><div class="stat-label">Native stdio</div><div class="stat-value" id="statNative">—</div></div>
       <div class="stat"><div class="stat-label">Local Podman</div><div class="stat-value" id="statPodman">—</div></div>
-      <div class="stat"><div class="stat-label">Code Engine</div><div class="stat-value" id="statRemote">—</div></div>
+      <div class="stat"><div class="stat-label">Remote HTTP</div><div class="stat-value" id="statRemote">—</div></div>
       <div class="stat"><div class="stat-label">npm update</div><div class="stat-value" id="statNpm">—</div></div>
       <div class="stat"><div class="stat-label">Diagnose</div><div class="stat-value" id="statDiag">idle</div></div>
     </div>
@@ -126,12 +133,25 @@
       <span class="chip" data-cmd="admin">/admin</span>
       <span class="chip" data-cmd="tools">/tools</span>
       <span class="chip" data-cmd="help">/help</span>
+      <span class="chip" data-cmd="showDocs">Docs</span>
       <span class="chip" data-cmd="focusTree">Resources</span>
     </div>
     <div id="toast" class="toast"></div>
 
     <section id="setup" class="pane active">
-      <p class="hint">Three ways to run the same MCP. Connecting one does not replace the others.</p>
+      <p class="hint">Chat uses mcp.json. Diagnose and CRUD hit the HTTP host you pick here — they can be different processes.</p>
+      <h2>Diagnose &amp; CRUD host</h2>
+      <label>Active target</label>
+      <select id="setupProbeTarget">
+        <option value="auto">auto (hosting URL if set, else local HTTP)</option>
+        <option value="native-http">local HTTP · 127.0.0.1</option>
+        <option value="podman">local container</option>
+        <option value="remote">remote HTTP · Render / Code Engine</option>
+      </select>
+      <label>Hosting URL</label>
+      <input id="setupRemoteUrl" placeholder="https://mcp-ticket-demo.onrender.com">
+      <button class="btn primary" data-cmd="useRemote">Use this URL in mcp.json</button>
+      <p class="hint">Probing <code id="setupProbeLabel">…</code>. Example host: <a class="link" href="https://mcp-ticket-demo.onrender.com/health">mcp-ticket-demo.onrender.com</a>. Details on the <a class="link" data-cmd="showDocs">Docs</a> tab.</p>
       <h2>Register with IDE</h2>
       <button class="btn primary" data-cmd="registerIde">&#x2795; Register server with all IDEs</button>
       <div id="registerResult" style="display:none; margin:6px 0; padding:8px 10px; border-radius:6px; border:1px solid var(--line2); background:#0f2040; font:10px/1.5 'IBM Plex Mono',ui-monospace,monospace; color:var(--muted2); white-space:pre;"></div>
@@ -145,34 +165,56 @@
         <button class="btn" data-cmd="podmanHttp">Connect HTTP</button>
       </div>
       <button class="btn danger" data-cmd="podmanStop">Stop container</button>
-      <h2>Remote Code Engine</h2>
-      <button class="btn primary" data-cmd="remote">Connect remote Code Engine</button>
+      <h2>Remote HTTP</h2>
+      <button class="btn primary" data-cmd="remote">Connect remote HTTP</button>
+      <div class="row">
+        <button class="btn" data-cmd="render">Deploy on Render</button>
+        <button class="btn q" data-cmd="renderKeyHelp" title="Add a Render API key in Settings">?</button>
+      </div>
+      <p class="hint"><a class="link" data-cmd="renderKeyHelp">Add a Render API key in Settings</a> so Deploy can find the live URL.</p>
       <button class="btn" data-cmd="discover">Discover mcp.json</button>
     </section>
 
     <section id="diag" class="pane">
-      <p class="hint">Same checklist as the Code Engine MCP extension: config present, process alive, tools/list, one real call.</p>
+      <p class="hint">Hits the host shown above: <code id="diagProbeHint">…</code>. Config present, process alive, tools/list, one real call.</p>
       <button class="btn primary" data-cmd="diagnose">Run diagnostics</button>
       <div id="results"></div>
     </section>
 
     <section id="mcpTest" class="pane">
-      <p class="hint">Full CRUD test using MCP tools over HTTP. Creates a ticket, reads it back, adds a comment, closes it, then searches with status=all. Requires the HTTP server to be running.</p>
+      <p class="hint">CRUD against <code id="crudProbeHint">…</code>. Write tools on Render need an API key from /admin (auth mode is write). Set <code>summitMcp.apiKey</code> in Settings.</p>
       <button class="btn primary" data-cmd="runMcpCrud">Run MCP CRUD test</button>
       <div id="mcpTestResults"></div>
     </section>
 
+    <section id="docs" class="pane">
+      <h2>Remote HTTP — Render or Code Engine</h2>
+      <p class="hint">Chat reads <code>mcp.json</code>. Diagnose and CRUD hit the HTTP host in <strong>Active target</strong>. They can be different servers (two in-memory stores).</p>
+      <p class="hint"><strong>1.</strong> Setup → Active target = <code>remote HTTP</code>.<br>
+      <strong>2.</strong> Hosting URL = <code>https://mcp-ticket-demo.onrender.com</code> (no <code>/health</code>).<br>
+      <strong>3.</strong> <strong>Use this URL in mcp.json</strong> — writes <code>mcp-ticket-demo-remote</code> (<code>/sse</code> in VS Code, <code>/mcp</code> in Bob / Windsurf).<br>
+      <strong>4.</strong> Reload the window so Chat sees the remote server.<br>
+      <strong>5.</strong> Writes: open <a class="link" href="https://mcp-ticket-demo.onrender.com/admin">/admin</a>, issue an API key, save it under Settings → <code>summitMcp.apiKey</code>. Render boots <code>AUTH_MODE=write</code>.</p>
+      <h2>Deploy your own</h2>
+      <p class="hint"><strong>Deploy on Render</strong> opens the Blueprint for this GitHub repo. <code>render.yaml</code> is native Node in <code>server/</code> — not the UBI Docker image. Optional Render API key (Settings, or <strong>?</strong> next to Deploy) looks up the live URL.</p>
+      <p class="hint">Code Engine is the same remote: paste that HTTPS origin as the hosting URL. Connecting remote does not replace native stdio.</p>
+      <h2>Pages on the probe host</h2>
+      <p class="hint"><code>/health</code> liveness · <code>/test</code> smoke · <code>/admin</code> keys · <code>/mcp</code> Streamable HTTP · <code>/sse</code> SSE.</p>
+    </section>
+
     <section id="settings" class="pane">
-      <p class="hint">Workspace <code>summitMcp.*</code> settings. Probe target chooses which URL Diagnose opens.</p>
+      <p class="hint">Workspace <code>summitMcp.*</code> settings. <code>probeTarget</code> + hosting URL are what Diagnose and CRUD call. See the Docs tab for the Render walkthrough.</p>
       <label>Probe target</label>
       <select id="probeTarget">
         <option value="auto">auto (remote URL, else local HTTP)</option>
         <option value="native-http">native HTTP</option>
         <option value="podman">local Podman</option>
-        <option value="remote">remote Code Engine</option>
+        <option value="remote">remote HTTP · Render / Code Engine</option>
       </select>
-      <label>Remote Code Engine URL</label>
-      <input id="remoteUrl" placeholder="https://mcp-ticket-demo.…codeengine.appdomain.cloud">
+      <label>Hosting URL (Render / Code Engine)</label>
+      <input id="remoteUrl" placeholder="https://mcp-ticket-demo.onrender.com">
+      <label>Render API key · <a class="link" href="https://dashboard.render.com/u/settings#api-keys">Get a key</a></label>
+      <input id="renderApiKey" type="password" placeholder="rnd_… from dashboard.render.com → Account Settings → API Keys">
       <label>Local HTTP URL</label>
       <input id="localHttpUrl">
       <label>Podman image</label>
@@ -222,13 +264,42 @@
       document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("active", p.id === id));
     }
     document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => showTab(tab.dataset.tab)));
+    const setupTarget = document.getElementById("setupProbeTarget");
+    if (setupTarget) {
+      setupTarget.addEventListener("change", () => {
+        post("saveSettings", { values: {
+          probeTarget: setupTarget.value,
+          remoteUrl: document.getElementById("setupRemoteUrl").value,
+        }});
+      });
+    }
     function post(command, extra) { vscode.postMessage(Object.assign({ command: command }, extra || {})); }
     document.querySelectorAll("[data-cmd]").forEach((el) => {
-      el.addEventListener("click", () => {
+      el.addEventListener("click", (ev) => {
+        if (el.dataset.cmd === "showDocs") {
+          ev.preventDefault();
+          showTab("docs");
+          return;
+        }
+        if (el.dataset.cmd === "useRemote") {
+          post("useRemote", { url: document.getElementById("setupRemoteUrl").value || document.getElementById("remoteUrl").value });
+          return;
+        }
+        if (el.dataset.cmd === "renderKeyHelp") {
+          ev.preventDefault();
+          showTab("settings");
+          const input = document.getElementById("renderApiKey");
+          if (input) {
+            input.focus();
+            input.scrollIntoView({ block: "center" });
+          }
+          return;
+        }
         if (el.dataset.cmd === "saveSettings") {
           post("saveSettings", { values: {
             probeTarget: document.getElementById("probeTarget").value,
             remoteUrl: document.getElementById("remoteUrl").value,
+            renderApiKey: document.getElementById("renderApiKey").value,
             localHttpUrl: document.getElementById("localHttpUrl").value,
             podmanImage: document.getElementById("podmanImage").value,
             podmanContainer: document.getElementById("podmanContainer").value,
@@ -289,9 +360,17 @@
         diag.className = "stat-value " + (state.diag.ok ? "ok" : "err");
       }
       const s = state.settings || {};
-      ["probeTarget","remoteUrl","localHttpUrl","podmanImage","podmanContainer","podmanPort","adminUser","adminPassword","demoToken"].forEach((k) => {
+      ["probeTarget","remoteUrl","renderApiKey","localHttpUrl","podmanImage","podmanContainer","podmanPort","adminUser","adminPassword","demoToken"].forEach((k) => {
         const el = document.getElementById(k);
         if (el && s[k] !== undefined && s[k] !== null) el.value = s[k];
+      });
+      const setupProbe = document.getElementById("setupProbeTarget");
+      if (setupProbe && s.probeTarget) setupProbe.value = s.probeTarget;
+      const setupUrl = document.getElementById("setupRemoteUrl");
+      if (setupUrl && s.remoteUrl !== undefined && s.remoteUrl !== null) setupUrl.value = s.remoteUrl;
+      ["setupProbeLabel","diagProbeHint","crudProbeHint"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = state.probe || "—";
       });
       if (state.prompts) {
         document.getElementById("prompts").innerHTML = state.prompts.map((p) =>

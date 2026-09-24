@@ -22,6 +22,26 @@
         "lookup_customer"
       ],
       "disabled": false
+    },
+    "mcp-ticket-demo-remote": {
+      "type": "streamable-http",
+      "url": "https://mcp-ticket-demo.onrender.com/mcp",
+      "alwaysAllow": [
+        "describe_server",
+        "search_tickets",
+        "create_ticket",
+        "add_comment",
+        "close_ticket",
+        "get_ticket",
+        "list_schemas",
+        "get_schema",
+        "run_query",
+        "lookup_customer"
+      ],
+      "disabled": false,
+      "headers": {
+        "Authorization": "Bearer demo-token"
+      }
     }
   }
 }
