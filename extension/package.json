@@ -2,7 +2,8 @@
   "name": "lf-mcp-summit-demo",
   "displayName": "LF MCP Demo",
   "description": "Control plane and test harness for the mcp-ticket-demo MCP server — lifecycle management, step-by-step diagnostics, end-to-end CRUD test, send-to-chat prompts, and one-click IDE config for VS Code, Bob, Cursor, and Windsurf.",
-  "version": "1.7.0",
+  "version": "1.7.5",
+  "license": "Apache-2.0",
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -111,7 +112,15 @@
       },
       {
         "command": "summitMcp.connectRemote",
-        "title": "LF MCP Demo: Connect remote Code Engine"
+        "title": "LF MCP Demo: Connect remote HTTP"
+      },
+      {
+        "command": "summitMcp.useRemote",
+        "title": "LF MCP Demo: Use hosting URL in mcp.json"
+      },
+      {
+        "command": "summitMcp.openRenderDeploy",
+        "title": "LF MCP Demo: Deploy on Render"
       },
       {
         "command": "summitMcp.connectPodmanStdio",
@@ -228,12 +237,17 @@
           "type": "string",
           "enum": ["auto", "native-http", "podman", "remote"],
           "default": "auto",
-          "description": "Which HTTP surface Diagnose and /health open. auto uses the Code Engine URL when set."
+          "description": "Which HTTP host Diagnose, CRUD, and /health use. auto uses the hosting URL when set."
         },
         "summitMcp.remoteUrl": {
           "type": "string",
           "default": "",
-          "description": "Public Code Engine URL, no trailing slash."
+          "description": "Public hosting URL (Render, Code Engine, or any HTTPS host). No trailing slash."
+        },
+        "summitMcp.renderApiKey": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Render account API key ([Dashboard → Account Settings → API Keys](https://dashboard.render.com/u/settings#api-keys)). Used by **Deploy on Render** to find the live `mcp-ticket-demo` URL."
         },
         "summitMcp.localHttpUrl": {
           "type": "string",

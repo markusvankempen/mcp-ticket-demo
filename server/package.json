@@ -11,7 +11,9 @@
   "files": [
     "src",
     "README.md",
-    "server.json"
+    "server.json",
+    "LICENSE",
+    "NOTICE"
   ],
   "keywords": [
     "mcp",
@@ -79,7 +81,7 @@
   "bugs": {
     "url": "https://github.com/markusvankempen/mcp-ticket-demo/issues"
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "scripts": {
     "start": "node src/index.js",
     "stdio": "MCP_MODE=stdio node src/index.js",
