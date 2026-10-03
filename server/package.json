@@ -1,0 +1,112 @@
+{
+  "name": "mcp-ticket-demo",
+  "version": "3.0.1",
+  "mcpName": "io.github.markusvankempen/mcp-ticket-demo",
+  "description": "Demo MCP server for ticket workflows — local stdio and remote HTTP. Teaches real-world MCP patterns: tool naming, attribution, schema discovery, auth, and PII gating.",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "mcp-ticket-demo": "src/index.js"
+  },
+  "files": [
+    "src",
+    "media",
+    "clients",
+    "scripts",
+    "README.md",
+    "server.json",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "mcp-client",
+    "mcp-demo",
+    "mcp-tutorial",
+    "mcp-authentication",
+    "mcp-tools",
+    "mcp-stdio",
+    "mcp-http",
+    "mcp-sse",
+    "ai-tools",
+    "ai-agent",
+    "llm",
+    "llm-tools",
+    "agent",
+    "agentic",
+    "tool-calling",
+    "function-calling",
+    "stdio",
+    "streamable-http",
+    "sse",
+    "tickets",
+    "helpdesk",
+    "ticketing-system",
+    "demo",
+    "tutorial",
+    "example",
+    "ibm",
+    "ibm-cloud",
+    "linux-foundation",
+    "mcp-dev-summit",
+    "toronto",
+    "podman",
+    "docker",
+    "code-engine",
+    "vscode",
+    "vscode-extension",
+    "cursor",
+    "windsurf",
+    "copilot",
+    "github-copilot",
+    "bob",
+    "cline",
+    "authentication",
+    "api-key",
+    "rate-limiting",
+    "observability",
+    "express",
+    "nodejs",
+    "node"
+  ],
+  "author": {
+    "name": "Markus van Kempen",
+    "email": "markus.van.kempen@gmail.com",
+    "url": "https://markusvankempen.github.io/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/markusvankempen/mcp-ticket-demo.git"
+  },
+  "homepage": "https://github.com/markusvankempen/mcp-ticket-demo#readme",
+  "bugs": {
+    "url": "https://github.com/markusvankempen/mcp-ticket-demo/issues"
+  },
+  "license": "Apache-2.0",
+  "scripts": {
+    "start": "node src/index.js",
+    "stdio": "MCP_MODE=stdio node src/index.js",
+    "http": "bash scripts/http.sh",
+    "test": "node src/smoke.js",
+    "test:smoke": "MCP_MODE=http PORT=8799 node src/smoke.js",
+    "test:tools": "node src/test-tools.js",
+    "test:tools:phase1": "node src/test-tools.js --phase1",
+    "test:tools:phase2": "node src/test-tools.js --phase2",
+    "test:ops": "node src/test-ops.js",
+    "test:cli": "node src/test-cli.js",
+    "test:events": "node src/test-events.js",
+    "test:mqtt": "node src/test-mqtt.js",
+    "test:system": "node src/test-system.js",
+    "test:all": "node src/smoke.js && node src/test-system.js && node src/test-tools.js && node src/test-ops.js && node src/test-cli.js && node src/test-events.js && node src/test-mqtt.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.0",
+    "express": "^5.1.0",
+    "zod": "^3.25.0"
+  }
+}

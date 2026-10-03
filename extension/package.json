@@ -1,0 +1,371 @@
+{
+  "name": "lf-mcp-summit-demo",
+  "displayName": "LF MCP Demo",
+  "description": "Control plane and test harness for the mcp-ticket-demo MCP server — lifecycle management, step-by-step diagnostics, end-to-end CRUD test, send-to-chat prompts, and one-click IDE config for VS Code, Bob, Cursor, and Windsurf.",
+  "version": "1.16.0",
+  "license": "Apache-2.0",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "mcp-client",
+    "mcp-demo",
+    "mcp-tutorial",
+    "mcp-tools",
+    "mcp-stdio",
+    "mcp-http",
+    "mcp-authentication",
+    "ai-tools",
+    "ai-agent",
+    "llm",
+    "llm-tools",
+    "agent",
+    "agentic",
+    "tool-calling",
+    "function-calling",
+    "copilot",
+    "github-copilot",
+    "bob",
+    "cursor",
+    "windsurf",
+    "cline",
+    "vscode",
+    "vscode-extension",
+    "stdio",
+    "streamable-http",
+    "sse",
+    "podman",
+    "docker",
+    "code-engine",
+    "ibm",
+    "ibm-cloud",
+    "linux-foundation",
+    "mcp-dev-summit",
+    "toronto",
+    "demo",
+    "tutorial",
+    "example",
+    "diagnostics",
+    "tickets",
+    "helpdesk",
+    "ticketing-system",
+    "authentication",
+    "api-key",
+    "rate-limiting",
+    "observability",
+    "nodejs",
+    "node"
+  ],
+  "icon": "media/icon.png",
+  "publisher": "markusvankempen",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/markusvankempen/mcp-ticket-demo.git"
+  },
+  "homepage": "https://github.com/markusvankempen/mcp-ticket-demo#readme",
+  "bugs": {
+    "url": "https://github.com/markusvankempen/mcp-ticket-demo/issues"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "AI",
+    "Chat",
+    "Education",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./src/extension.js",
+  "scripts": {
+    "check-sync": "node scripts/check-sync.js",
+    "smoke": "node scripts/smoke-load.js",
+    "test": "node scripts/smoke-load.js && node scripts/test-remote.js && node scripts/test-event-host.js",
+    "preview": "node scripts/preview.js",
+    "package": "node scripts/smoke-load.js && node scripts/test-remote.js && node scripts/test-event-host.js && node scripts/bundle-server.js && node scripts/check-sync.js && npx --yes @vscode/vsce package --no-dependencies"
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "summitMcp",
+          "title": "LF MCP Demo",
+          "icon": "media/activitybar.svg"
+        }
+      ]
+    },
+    "views": {
+      "summitMcp": [
+        {
+          "id": "summitMcp.setup",
+          "name": "Setup & Diagnostics",
+          "type": "webview"
+        },
+        {
+          "id": "summitMcp.resources",
+          "name": "Resources",
+          "type": "tree"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "summitMcp.discover",
+        "title": "LF MCP Demo: Discover mcp.json"
+      },
+      {
+        "command": "summitMcp.connectLocal",
+        "title": "LF MCP Demo: Connect native stdio"
+      },
+      {
+        "command": "summitMcp.connectNativeHttp",
+        "title": "LF MCP Demo: Connect native HTTP (same server as /admin)"
+      },
+      {
+        "command": "summitMcp.connectRemote",
+        "title": "LF MCP Demo: Connect remote HTTP"
+      },
+      {
+        "command": "summitMcp.connectCodeEngine",
+        "title": "LF MCP Demo: Connect Code Engine ca-tor"
+      },
+      {
+        "command": "summitMcp.connectPodmanStdio",
+        "title": "LF MCP Demo: Connect container stdio (Podman / Docker)"
+      },
+      {
+        "command": "summitMcp.connectPodmanHttp",
+        "title": "LF MCP Demo: Connect container HTTP (Podman / Docker)"
+      },
+      {
+        "command": "summitMcp.podmanStart",
+        "title": "LF MCP Demo: Build & start local container (Podman / Docker)"
+      },
+      {
+        "command": "summitMcp.podmanStop",
+        "title": "LF MCP Demo: Stop local container"
+      },
+      {
+        "command": "summitMcp.diagnose",
+        "title": "LF MCP Demo: Diagnose"
+      },
+      {
+        "command": "summitMcp.fillChat",
+        "title": "LF MCP Demo: Send prompt to chat"
+      },
+      {
+        "command": "summitMcp.chatSearch",
+        "title": "LF MCP Demo: Chat — search open tickets"
+      },
+      {
+        "command": "summitMcp.saveSettings",
+        "title": "LF MCP Demo: Save settings"
+      },
+      {
+        "command": "summitMcp.openHealth",
+        "title": "LF MCP Demo: Open /health"
+      },
+      {
+        "command": "summitMcp.openTest",
+        "title": "LF MCP Demo: Open /test"
+      },
+      {
+        "command": "summitMcp.openAdmin",
+        "title": "LF MCP Demo: Open /admin"
+      },
+      {
+        "command": "summitMcp.openTools",
+        "title": "LF MCP Demo: Open /tools"
+      },
+      {
+        "command": "summitMcp.openHelp",
+        "title": "LF MCP Demo: Open /help"
+      },
+      {
+        "command": "summitMcp.openPanel",
+        "title": "LF MCP Demo: Open diagnostics panel",
+        "icon": {
+          "light": "media/icons/light/diagnose.svg",
+          "dark": "media/icons/dark/diagnose.svg"
+        }
+      },
+      {
+        "command": "summitMcp.startLocalHttp",
+        "title": "LF MCP Demo: Start native HTTP server"
+      },
+      {
+        "command": "summitMcp.showMenu",
+        "title": "LF MCP Demo: Show quick menu"
+      },
+      {
+        "command": "summitMcp.openConfig",
+        "title": "LF MCP Demo: Open mcp.json"
+      },
+      {
+        "command": "summitMcp.installServer",
+        "title": "LF MCP Demo: Install bundled server"
+      },
+      {
+        "command": "summitMcp.updateServer",
+        "title": "LF MCP Demo: Update server from npm"
+      },
+      {
+        "command": "summitMcp.refreshTree",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "summitMcp.registerIde",
+        "title": "LF MCP Demo: Register server with all IDEs"
+      },
+      {
+        "command": "summitMcp.runMcpCrud",
+        "title": "LF MCP Demo: Run MCP CRUD test"
+      },
+      {
+        "command": "summitMcp.openEvents",
+        "title": "LF MCP Demo: Events (listen live, MQTT, logging level)"
+      },
+      {
+        "command": "summitMcp.openRemoteConfig",
+        "title": "LF MCP Demo: Remote config (rate limit, users, API keys, demo setup)"
+      },
+      {
+        "command": "summitMcp.testBrowserAccess",
+        "title": "LF MCP Demo: Test browser access (CORS)"
+      },
+      {
+        "command": "summitMcp.openBrowserClient",
+        "title": "LF MCP Demo: Open browser client page"
+      },
+      {
+        "command": "summitMcp.openCliPage",
+        "title": "LF MCP Demo: Open command line page"
+      },
+      {
+        "command": "summitMcp.copyBrowserSnippet",
+        "title": "LF MCP Demo: Copy browser fetch snippet"
+      },
+      {
+        "command": "summitMcp.copyCorsLine",
+        "title": "LF MCP Demo: Copy CORS_ORIGINS line"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "summitMcp.refreshTree",
+          "when": "view == summitMcp.resources",
+          "group": "navigation"
+        },
+        {
+          "command": "summitMcp.openPanel",
+          "when": "view == summitMcp.setup || view == summitMcp.resources",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "MCP Platform Demo",
+      "properties": {
+        "summitMcp.probeTarget": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "native-http",
+            "podman",
+            "remote",
+            "codeengine"
+          ],
+          "default": "auto",
+          "description": "Which HTTP host Diagnose, CRUD, and /health use. auto uses the hosting URL when set."
+        },
+        "summitMcp.remoteUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Public hosting URL (Render or any HTTPS host). No trailing slash. Written as mcp-ticket-demo-remote."
+        },
+        "summitMcp.codeEngineUrl": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "IBM Code Engine origin, no path (empty until you paste your deployed URL). **Connect Code Engine** writes `mcp-ticket-demo-codeengine` (`/mcp` and `/sse`) and points Diagnose/CRUD at it. This host is separate from `summitMcp.remoteUrl`."
+        },
+        "summitMcp.localHttpUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8787",
+          "description": "Local native HTTP server for /health /test /admin."
+        },
+        "summitMcp.podmanImage": {
+          "type": "string",
+          "default": "mcp-ticket-demo:local",
+          "description": "Local Podman image name built from mcp-ticket-demo/Dockerfile."
+        },
+        "summitMcp.podmanContainer": {
+          "type": "string",
+          "default": "mcp-ticket-demo",
+          "description": "Local Podman container name."
+        },
+        "summitMcp.podmanPort": {
+          "type": "number",
+          "default": 8787,
+          "description": "Host port mapped to container 8080."
+        },
+        "summitMcp.adminUser": {
+          "type": "string",
+          "default": "demo",
+          "description": "Admin username for /admin."
+        },
+        "summitMcp.adminPassword": {
+          "type": "string",
+          "default": "demo",
+          "description": "Admin password for /admin. Do not use this default in production."
+        },
+        "summitMcp.apiKey": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "API key to present when calling tools. Issue one on `/admin` → API keys. Sent as `Authorization: Bearer <key>` over HTTP, and as `MCP_API_KEY` to a stdio or Podman server."
+        },
+        "summitMcp.authMode": {
+          "type": "string",
+          "enum": [
+            "off",
+            "write",
+            "all"
+          ],
+          "default": "off",
+          "markdownDescription": "Auth mode the local server boots with: `off` (nothing gated), `write` (write and PII tools need a credential), `all` (every tool call does)."
+        },
+        "summitMcp.corsOrigins": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Web-page origins allowed to call the HTTP server from a browser, comma-separated (for example `https://app.example.com`). Passed as `CORS_ORIGINS` when this extension starts the native HTTP server or the container; restart it to apply. Localhost and the server's own host are always allowed. A deployed server needs the same variable in its own environment."
+        },
+        "summitMcp.autoConnectStdio": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "On activate, write native stdio (`mcp-ticket-demo`) into `.vscode/mcp.json` and the other IDE configs if it is missing. Never overwrites an HTTP/SSE entry. Turn off to manage `mcp.json` yourself."
+        },
+        "summitMcp.showBrowserTab": {
+          "type": "boolean",
+          "default": false,
+          "scope": "application",
+          "description": "Show the Browser tab (browser access and CORS test) and its tree and menu entries. Hidden by default. Running a command that needs the tab turns this on."
+        },
+        "summitMcp.showRemoteConfigTab": {
+          "type": "boolean",
+          "default": false,
+          "scope": "application",
+          "description": "Show the Remote config tab (demo setup, rate limit, users, API keys, any tool) and its tree and menu entries. Hidden by default. Running its command turns this on."
+        },
+        "summitMcp.showEventsTab": {
+          "type": "boolean",
+          "default": false,
+          "scope": "application",
+          "description": "Show the Events tab (listen live, MQTT, logging level) and its tree and menu entries. Hidden by default. Running its command turns this on."
+        }
+      }
+    }
+  }
+}

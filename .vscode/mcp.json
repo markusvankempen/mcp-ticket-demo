@@ -1,0 +1,19 @@
+{
+  "servers": {
+    "mcp-ticket-demo": {
+      "type": "stdio",
+      "command": "/opt/homebrew/bin/node",
+      "args": [
+        "src/index.js"
+      ],
+      "cwd": "/Users/markusvankempen/projects/mcp-ticket-demo/server",
+      "env": {
+        "MCP_MODE": "stdio"
+      }
+    },
+    "mcp-ticket-demo-remote": {
+      "type": "sse",
+      "url": "https://mcp-ticket-demo.onrender.com/sse"
+    }
+  }
+}

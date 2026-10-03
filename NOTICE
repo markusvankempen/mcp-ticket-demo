@@ -1,0 +1,17 @@
+mcp-ticket-demo
+Copyright 2026 Markus van Kempen
+
+This product introduces the following MCP design patterns:
+  - Attribution scar: tickets created without requester_email are owned by
+    the service account, not the customer — a permanent, auditable record
+    that the AI agent made the wrong call.
+  - describe_server: a first-call discovery tool that tells a model the auth
+    mode, the scopes it holds, its rate-limit budget, and every tool — so it
+    can ask "what do you need from me?" instead of guessing and retrying.
+  - Naive mode: a demo toggle that strips actionable error guidance down to a
+    bare 403, illustrating the retry-loop failure mode of opaque denials.
+  - Tool-scope enforcement: per-tool auth overrides, tool gates, and the
+    read / write / pii scope hierarchy.
+
+Licensed under the Apache License, Version 2.0.
+http://www.apache.org/licenses/LICENSE-2.0

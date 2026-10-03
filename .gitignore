@@ -1,0 +1,17 @@
+node_modules
+server/node_modules
+extension/node_modules
+.env
+*.vsix
+.DS_Store
+
+# Internal documents — never publish to repo
+Internal/
+
+# Extension source stays off the public branch
+extension/src/
+
+server/src/
+server/clients/
+server/scripts/
+extension/media/

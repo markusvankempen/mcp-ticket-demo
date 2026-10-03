@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "mcp-ticket-demo": {
+      "command": "/opt/homebrew/bin/node",
+      "args": [
+        "src/index.js"
+      ],
+      "cwd": "/Users/markusvankempen/projects/mcp-ticket-demo/server",
+      "env": {
+        "MCP_MODE": "stdio"
+      }
+    },
+    "mcp-ticket-demo-remote": {
+      "command": "uvx",
+      "args": [
+        "mcp-proxy",
+        "https://mcp-ticket-demo.onrender.com/sse"
+      ]
+    }
+  }
+}
