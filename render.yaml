@@ -1,20 +1,19 @@
-# Native Node on Render — not the UBI Dockerfile (registry.redhat.io needs a login).
-# Deploy from the extension or: https://render.com/deploy?repo=https://github.com/markusvankempen/mcp-ticket-demo
+# Installs the published npm package. This repo does not contain server/src.
+# Deploy: https://render.com/deploy?repo=https://github.com/markusvankempen/mcp-ticket-demo
 services:
   - type: web
     name: mcp-ticket-demo
     runtime: node
     plan: free
-    rootDir: server
-    buildCommand: npm install --omit=dev
-    startCommand: node src/index.js
+    buildCommand: npm init -y && npm install mcp-ticket-demo@3.0.1
+    startCommand: npx --no-install mcp-ticket-demo
     healthCheckPath: /health
     envVars:
+      - key: NODE_VERSION
+        value: "20"
       - key: MCP_MODE
         value: http
       - key: HOST
         value: 0.0.0.0
       - key: AUTH_MODE
         value: write
-      - key: ADMIN_PASSWORD
-        generateValue: true
